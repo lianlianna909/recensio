@@ -1,0 +1,310 @@
+# entity-schemas.example.yaml
+#
+# 科学写作系统 —— 实体字段的机器可校验定义（示例，非最终规范）
+# 来源：SCIENTIFIC_DATA_MODEL_PROPOSAL.md §3
+#
+# 设计约束：
+#   1. 本文件是 *数据*，不是代码。插件与 CLI 校验器都必须解释执行同一份文件，
+#      否则两端语义会漂移（提案 §9.4）。
+#   2. 使用 JSON-Schema 的一个可机械翻译的子集，避免引入 YAML-only 语义。
+#   3. 字段组（S1/S2/S3）以 anchors 形式复用，但展开是显式的：见 `expand_from`。
+#   4. schema_version 是 *每个实体类型* 的版本；全局注册表见 _schema/SCHEMA_REGISTRY.md。
+
+model: scientific-writing
+schema_version: "1.0"
+id_pattern: "^(prj|msc|sec|par|fig|pnl|res|mth|exp|ref|cit|clm|ast|rnd|iss|pat|rsp)_[0-9A-HJKMNP-TV-Z]{8}$"
+id_alphabet: "0123456789ABCDEFGHJKMNPQRSTVWXYZ"   # Crockford Base32
+id_body_length: 8
+
+# ---------------------------------------------------------------------------
+# 字段组定义（被实体通过 expand_from 展开；展开结果必须写入实体自身的字段表）
+# ---------------------------------------------------------------------------
+field_groups:
+
+  S1_identity:
+    id:               {type: string, required: true,  immutable: true, pattern_ref: id_pattern}
+    type:             {type: string, required: true,  immutable: true, enum_ref: entity_type_of_prefix}
+    schema_version:   {type: string, required: true,  default: "1.0", pattern: "^\\d+\\.\\d+$"}
+    project:          {type: wikilink, required: true, target_prefix: [prj]}
+    title:            {type: string, required: true, min_length: 1, max_length: 300}
+    aliases:          {type: list<string>, required: false, default: [], unique_items: true}
+    tags:             {type: list<string>, required: false, default: []}
+    created:          {type: datetime, required: true, immutable: true, format: "ISO8601-with-offset"}
+    updated:          {type: datetime, required: true, constraint: ">= created"}
+    status:           {type: string, required: true, enum_ref: per_entity_status}
+    supersedes:       {type: wikilink, required: false, default: null, target_same_type: true, no_cycle: true}
+    notes:            {type: string, required: false, default: ""}
+
+  S2_provenance:
+    source_asset:         {type: wikilink, required: false, default: null, target_prefix: [ast]}
+    source_sha256:        {type: string, required: false, default: null, pattern: "^[0-9a-f]{64}$",
+                           constraint: "required_if: source_asset != null"}
+    source_anchor:        {type: string, required: false, default: null, format_ref: anchor_grammar}
+    source_locator_hint:  {type: string, required: false, default: null}
+    derived_from:         {type: list<wikilink>, required: false, default: [], no_cycle: true}
+    content_hash:         {type: string, required: false, default: null, pattern: "^[0-9a-f]{16}$"}
+
+  S3_review:
+    review_state: {type: string, required: true,  default: draft,
+                   enum: [draft, in_review, accepted, rejected, frozen]}
+    frozen:       {type: boolean,  required: true,  default: false, blocks_write_when_true: true}
+    visibility:   {type: string, required: true,  default: internal,
+                   enum: [internal, author_visible, reviewer_visible, public]}
+    x_ext:        {type: object,   required: false, default: {}}
+
+# ---------------------------------------------------------------------------
+# 锚点语法（提案 §5.2）
+# ---------------------------------------------------------------------------
+anchor_grammar:
+  pattern: "^(docx|pdf|tex|xlsx|md|img|email):([0-9a-f]{8})#.+$"
+  fragments:
+    docx: '^(p:\d+(\+docPr:\d+)?(#hash:[0-9a-f]{8})?|tbl:\d+/r:\d+/c:\d+|cm-id:\d+|footnote:\d+)$'
+    pdf:  '^(p:\d+( & (xywh:[0-9.,-]+ | q:".*"))?)$'
+    tex:  '^(label:[A-Za-z0-9:._-]+|line:\d+)$'
+    xlsx: '^(sheet:[^&]+&cell:[A-Z]+\d+(&range:.+)?)$'
+    img:  '^xywh:\d+,\d+,\d+,\d+$'
+
+entity_type_of_prefix:
+  prj: project
+  msc: manuscript
+  sec: section
+  par: paragraph
+  fig: figure
+  pnl: panel
+  res: result
+  mth: method
+  exp: experiment
+  ref: reference
+  cit: citation
+  clm: claim
+  ast: asset
+  rnd: revision_round
+  iss: revision_issue
+  pat: patch
+  rsp: response
+
+# ---------------------------------------------------------------------------
+# 代表性实体（五个）。其余 12 个类型的字段表见提案 §3；
+# 此处以 `entity_field_index` 给出它们的字段名清单，供迁移脚本与校验器对账。
+# ---------------------------------------------------------------------------
+entities:
+
+  figure:
+    schema_version: "1.0"
+    expand_from: [S1_identity, S2_provenance, S3_review]
+    storage: {kind: standalone_file, dir: Figures, filename: "{id}.md", body: free}
+    status_enum: [draft, in_review, accepted, frozen, rejected, retired]
+    fields:
+      manuscript:       {type: wikilink, required: true, target_prefix: [msc]}
+      caption:          {type: string, required: true, min_length: 1}
+      caption_title:    {type: string, required: false, default: ""}
+      display_order_key: {type: number, required: false, default: null}
+      panels:           {type: list<wikilink>, required: false, default: [], target_prefix: [pnl],
+                         cache_of: "Panel.figure"}
+      render_asset:     {type: wikilink, required: true, target_prefix: [ast]}
+      panel_layout:     {type: object, required: false, default: null,
+                         properties: {cols: number, rows: number}}
+      width_mm:         {type: number, required: false, default: null, minimum: 20, maximum: 400}
+      alt_text:         {type: string, required: false, default: ""}
+      label_prefix:     {type: string, required: true, default: figure, enum: [figure, supp_figure]}
+      credit:           {type: string, required: false, default: ""}
+      permissions:      {type: string, required: false, default: ""}
+      result_refs:      {type: list<wikilink>, required: false, default: [], target_prefix: [res]}
+
+  panel:
+    schema_version: "1.0"
+    expand_from: [S1_identity, S2_provenance, S3_review]
+    storage: {kind: standalone_file, dir: Panels, filename: "{id}.md"}
+    status_enum: [draft, in_review, accepted, frozen, rejected, retired]
+    fields:
+      figure:           {type: wikilink, required: true, target_prefix: [fig], authoritative_edge: true}
+      panel_label:      {type: string, required: true, pattern: "^[A-Z][a-z]?$"}
+      panel_order:      {type: number, required: true, minimum: 0}
+      crop:
+        type: object
+        required: true
+        properties:
+          unit: {type: string, enum: [rel, px, mm, pt], default: rel}
+          rect: {type: list<number>, length: 4}          # x, y, w, h
+      crop_px:
+        type: object
+        required: false
+        properties:
+          rect: {type: list<number>, length: 4}
+      layout:
+        type: object
+        required: true
+        properties:
+          unit: {type: string, enum: [rel, px, mm, pt], default: rel}
+          rect: {type: list<number>, length: 4}
+      canvas:
+        type: object
+        required: false
+        properties:
+          w_pt: {type: number}
+          h_pt: {type: number}
+      source_size:
+        type: object
+        required: true
+        properties:
+          w_px: {type: number}
+          h_px: {type: number}
+          dpi:  {type: number, default: 300}
+      transform:
+        type: object
+        required: false
+        properties:
+          rotate: {type: number, enum: [0, 90, 180, 270]}
+          scale:  {type: number, default: 1.0}
+          flip:   {type: boolean, default: false}
+      calibration_state: {type: string, required: true, default: uncalibrated,
+                          enum: [uncalibrated, calibrated, stale]}
+      source_checksum_expected: {type: string, required: false, pattern: "^[0-9a-f]{64}$"}
+      stale_since:      {type: datetime, required: false}
+      crop_history:     {type: list<object>, required: false, default: [], append_only: true}
+      scale_bar_um:     {type: number, required: false}
+      unit_label:       {type: string, required: false, default: ""}
+      caption_part:     {type: string, required: false, default: ""}
+
+  result:
+    schema_version: "1.0"
+    expand_from: [S1_identity, S2_provenance, S3_review]
+    storage: {kind: standalone_file, dir: Results, filename: "{id}.md"}
+    status_enum: [draft, in_review, accepted, frozen, rejected, refuted]
+    fields:
+      experiments:   {type: list<wikilink>, required: true, min_items: 1, target_prefix: [exp]}
+      metric:        {type: string, required: true}
+      value:         {type: [number, string], required: false}
+      unit:          {type: string, required: false, default: ""}
+      error_type:    {type: string, required: false, default: none,
+                      enum: [sd, sem, ci95, iqr, none]}
+      error_value:   {type: number, required: false, constraint: "required_if: error_type != none"}
+      n:             {type: number, required: false, minimum: 1}
+      direction:     {type: string, required: false, enum: [increase, decrease, no_change],
+                      constraint: "required_if: value == null"}
+      p_value:       {type: number, required: false, minimum: 0, maximum: 1}
+      p_value_state: {type: string, required: true, default: not_computed,
+                      enum: [reported, not_computed, not_applicable]}
+      test:          {type: string, required: false, default: ""}
+      figures:       {type: list<wikilink>, required: false, default: [], cache_of: "Figure.result_refs"}
+      reproducible:  {type: boolean, required: false}
+      raw_data_ref:  {type: wikilink, required: false, target_prefix: [ast]}
+
+  claim:
+    schema_version: "1.0"
+    expand_from: [S1_identity, S2_provenance, S3_review]
+    storage: {kind: standalone_file, dir: Claims, filename: "{id}.md"}
+    status_enum: [draft, in_review, accepted, frozen, rejected, withdrawn]
+    fields:
+      statement:        {type: string, required: true, max_length: 2000}
+      manuscript:       {type: wikilink, required: true, target_prefix: [msc]}
+      expressed_in:     {type: list<string>, required: false, default: [], target_prefix: [par],
+                         cache_of: "inline [[clm_*]] in manuscript body"}
+      section_context:  {type: string, required: false, default: ""}
+      results:          {type: list<wikilink>, required: false, default: [],
+                         target_prefix: [res], authoritative_edge: true}
+      figures:          {type: list<wikilink>, required: false, default: [], cache_of: "results -> figures"}
+      citations:        {type: list<wikilink>, required: false, default: [], cache_of: "Citation.supports"}
+      depends_on:       {type: list<wikilink>, required: false, default: [], no_cycle: true}
+      strength:         {type: string, required: true, default: moderate,
+                         enum: [strong, moderate, weak, speculative]}
+      hedging:          {type: string, required: false, default: ""}
+      novelty_claim:    {type: boolean, required: true, default: false}
+      contradicts:      {type: list<wikilink>, required: false, default: [], symmetric_soft: true}
+
+  revision_issue:
+    schema_version: "1.0"
+    expand_from: [S1_identity, S2_provenance, S3_review]
+    storage: {kind: standalone_file, dir: Revisions, filename: "{id}.md"}
+    status_enum: [open, in_progress, resolved, wont_fix, waived, disputed]
+    fields:
+      round:            {type: wikilink, required: true, target_prefix: [rnd], authoritative_edge: true}
+      reviewer:         {type: string, required: true}       # R1 | R2 | editor | self
+      issue_label:      {type: string, required: false, cache_of: "derived round_index.reviewer.seq"}
+      source_text:      {type: string, required: true, immutable: true}
+      source_asset:     {type: wikilink, required: false, target_prefix: [ast]}
+      category:         {type: string, required: true,
+                         enum: [science, methods, statistics, writing, figures, references, ethics, formatting]}
+      severity:         {type: string, required: true, default: major, enum: [critical, major, minor]}
+      targets:
+        type: list<object>
+        required: true
+        default: []
+        item_properties:
+          manuscript: {type: string, required: true, target_prefix: [msc]}
+          par:        {type: string, required: true, target_prefix: [par]}
+          section:    {type: string, required: false, target_prefix: [sec]}
+          quote_hint: {type: string, required: false}
+          patch:      {type: wikilink, required: false, target_prefix: [pat]}
+      scope:            {type: string, required: true, default: localized,
+                         enum: [localized, global, structural]}
+      patches:          {type: list<wikilink>, required: false, default: [], cache_of: "Patch.issues"}
+      responses:        {type: list<wikilink>, required: false, default: [], cache_of: "Response.issues"}
+      resolution_note:  {type: string, required: false, default: ""}
+      planned_patch:    {type: string, required: false, default: ""}
+      blocks_submission: {type: boolean, required: true, default: true}
+
+# ---------------------------------------------------------------------------
+# 其余 12 类型的字段名索引（供迁移脚本 / 校验器对账；完整定义见提案 §3）
+# ---------------------------------------------------------------------------
+entity_field_index:
+  project: [id, type, schema_version, project, title, aliases, tags, created, updated, status,
+            supersedes, notes, review_state, frozen, visibility, x_ext,
+            short_name, principal_investigator, authors, affiliations, funding, ethics_approval,
+            data_availability, competing_interests, abbreviations, citation_style, default_locale]
+  manuscript: [id, type, schema_version, project, title, aliases, tags, created, updated, status,
+               supersedes, notes, review_state, frozen, visibility, x_ext,
+               source_asset, source_sha256, source_anchor, source_locator_hint, derived_from, content_hash,
+               journal, article_type, target_length_words, section_order, numbering_scheme,
+               supplementary_of, current_round, claims, figures, reference_style_note, section_meta]
+  section: [id, type, title, level, order, number, status, role, word_count, acronyms_defined,
+            anchors, frozen, notes]
+  paragraph: [id, type, manuscript, section, order, kind, text_hash, source_anchor, source_locator_hint,
+              track_change_state, citations, claim_refs, status, frozen, notes]
+  method:  [id, type, schema_version, project, title, aliases, tags, created, updated, status,
+            supersedes, notes, review_state, frozen, visibility, x_ext,
+            source_asset, source_sha256, source_anchor, source_locator_hint, derived_from, content_hash,
+            category, protocol_ref, parameters, software, reagents, cites, implemented_by]
+  experiment: [id, type, schema_version, project, title, aliases, tags, created, updated, status,
+               supersedes, notes, review_state, frozen, visibility, x_ext,
+               source_asset, source_sha256, source_anchor, source_locator_hint, derived_from, content_hash,
+               methods, results, performed_on, operator, conditions, sample_size, controls,
+               deviations, outcome]
+  reference: [id, type, schema_version, project, title, aliases, tags, created, updated, status,
+              supersedes, notes, review_state, frozen, visibility, x_ext,
+              source_asset, source_sha256, source_anchor, source_locator_hint, derived_from, content_hash,
+              citekey, entry_type, authors, et_al, year, container_title, volume, issue, pages,
+              publisher, doi, pmid, arxiv_id, url, accessed, language, abstract, keywords,
+              retracted, verified_against]
+  citation: [id, type, schema_version, project, title, aliases, tags, created, updated, status,
+             supersedes, notes, review_state, frozen, visibility, x_ext, derived_from,
+             reference, cited_in, container_paragraph, char_offset, locator, role, prefix, suffix,
+             suppress_author, claim, supports, quote, page_of_quote, verified]
+  asset:   [id, type, schema_version, project, title, aliases, tags, created, updated, status,
+            supersedes, notes, review_state, frozen, visibility, x_ext, derived_from, content_hash,
+            path, content_sha256, previous_sha256, size_bytes, mime_type, original_filename,
+            imported_from, license, attribution, read_only, page_count, text_layer, bin_ref]
+  revision_round: [id, type, schema_version, project, title, aliases, tags, created, updated, status,
+                   supersedes, notes, review_state, frozen, visibility, x_ext,
+                   manuscript, round_index, opened_on, due_on, decision, base_snapshot, snapshot_asset,
+                   result_snapshot, issues, patches, responses, reviewer_count, deadline_risk]
+  patch:   [id, type, schema_version, project, title, aliases, tags, created, updated, status,
+            supersedes, notes, review_state, frozen, visibility, x_ext,
+            round, issues, manuscript, targets, operation, diff, before_hash, after_hash,
+            applied_at, reverted_at, revert_of, reviewer_visible]
+  response: [id, type, schema_version, project, title, aliases, tags, created, updated, status,
+             supersedes, notes, review_state, frozen, visibility, x_ext,
+             round, issues, patches, stance, body, letter_group, letter_order, tone, mentions_ethics]
+
+# ---------------------------------------------------------------------------
+# 校验规则 ID 索引（完整逻辑见提案 §9.2）
+# ---------------------------------------------------------------------------
+validation_rules_index:
+  A_identity_and_structure: [VR-01, VR-02, VR-03, VR-04, VR-05, VR-06, VR-07, VR-08, VR-09, VR-10]
+  B_fields_and_values:      [VR-11, VR-12, VR-13, VR-14, VR-15, VR-16, VR-17, VR-18, VR-19, VR-20,
+                             VR-21, VR-22, VR-23, VR-24, VR-25, VR-26]
+  C_provenance:             [VR-27, VR-28, VR-29, VR-30, VR-31, VR-32, VR-33, VR-34]
+  D_literature_argument:    [VR-35, VR-36, VR-37, VR-38, VR-39, VR-40]
+  E_assets:                 [VR-41, VR-42]
+  F_revision_loop:          [VR-43, VR-44, VR-45, VR-46]
+  G_anchors_index:          [VR-47, VR-48, VR-49, VR-50, VR-51, VR-52]
