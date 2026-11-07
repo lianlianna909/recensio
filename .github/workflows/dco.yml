@@ -1,0 +1,49 @@
+name: DCO
+
+# 校验 PR 中每个提交都带 Signed-off-by，且签署人与提交作者一致。
+# 规则见 CONTRIBUTING.md §2 与 decisions/ADR-LIC-001-003.md (ADR-LIC-002)。
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  sign-off:
+    name: Check Signed-off-by
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify every commit is signed off
+        shell: bash
+        run: |
+          set -uo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+          echo "Range: $base..$head"
+
+          missing=0
+          total=0
+          for sha in $(git rev-list --no-merges "$base..$head"); do
+            total=$((total + 1))
+            author="$(git show -s --format='%an <%ae>' "$sha")"
+            if git show -s --format='%B' "$sha" | grep -qiF "Signed-off-by: $author"; then
+              echo "OK   $sha  $author"
+            else
+              echo "::error title=Missing DCO sign-off::$sha ($author) has no 'Signed-off-by: $author' trailer. Amend with: git commit --amend -s"
+              missing=$((missing + 1))
+            fi
+          done
+
+          echo "---"
+          echo "Commits checked: $total, missing sign-off: $missing"
+          if [ "$missing" -gt 0 ]; then
+            exit 1
+          fi
