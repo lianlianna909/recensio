@@ -9,10 +9,25 @@
 #   2. 使用 JSON-Schema 的一个可机械翻译的子集，避免引入 YAML-only 语义。
 #   3. 字段组（S1/S2/S3）以 anchors 形式复用，但展开是显式的：见 `expand_from`。
 #   4. schema_version 是 *每个实体类型* 的版本；全局注册表见 _schema/SCHEMA_REGISTRY.md。
+#   5. 【D-04，B5】frontmatter 只允许 标量 / 标量列表 / wikilink 列表。本文件中凡标注
+#      `placement: swp:<name>` 的字段，其值不在 frontmatter，而在正文的 ```yaml swp:<name>``` 块；
+#      标注 `placement: parallel_lists` 的字段由若干等长标量列表承载（清单见 parallel_lists）。
+#      标注 `placement: maps` 的字段落在 _maps/<msc>.map.yaml（纯 YAML，可嵌套）。
+#   6. 【B3】ID 前缀、token 文法、块锚点的唯一权威定义是提案 §6.0；本文件的 id_pattern 与
+#      token_kinds / kind_to_prefix *复制* 自 §6.0.8，改一处必须同步另一处（tests/run_vectors.py B3-05 守门）。
 
 model: scientific-writing
 schema_version: "1.0"
-id_pattern: "^(prj|msc|sec|par|fig|pnl|res|mth|exp|ref|cit|clm|ast|rnd|iss|pat|rsp)_[0-9A-HJKMNP-TV-Z]{8}$"
+id_pattern: "^(prj|msc|sec|par|fig|pnl|res|mth|exp|ref|cit|clm|ast|rnd|iss|pat|rsp|tab|eqn)_[0-9A-HJKMNP-TV-Z]{8}$"
+id_prefix_count: 19
+# token 种类与 ID 前缀解耦（§6.0.2 表的机器可读副本）：kind 是渲染种类，prefix 是实体类型
+token_kinds: [fig, figref, tab, tabref, eq, eqref, sec, pnl, res, pat]
+kind_to_prefix: {fig: fig, figref: fig, tab: tab, tabref: tab, eq: eqn, eqref: eqn,
+                 sec: sec, pnl: pnl, res: res, pat: pat}
+token_re: '\{\{(?P<kind>fig|figref|tab|tabref|eq|eqref|sec|pnl|res|pat):(?P<id>(?:prj|msc|sec|par|fig|pnl|res|mth|exp|ref|cit|clm|ast|rnd|iss|pat|rsp|tab|eqn)_[0-9A-HJKMNP-TV-Z]{8})(?:\#(?P<panel>[A-Z][0-9]?))?(?:\|(?P<opts>[^}|\s][^}|]*))?\}\}'
+token_panel_allowed_on: [figref, pnl]     # §6.0.4 规则 1（语义层）
+block_anchor_prefixes: [sec, par, eqn]    # §6.0.2 锚点 ID 子集
+hash_strip_anchor_re: '\s+\^(?:sec|par|eqn)[_-][0-9A-HJKMNP-TV-Z]{8}\s*$'   # §6.0.5 / §5.3
 id_alphabet: "0123456789ABCDEFGHJKMNPQRSTVWXYZ"   # Crockford Base32
 id_body_length: 8
 
@@ -50,7 +65,9 @@ field_groups:
     frozen:       {type: boolean,  required: true,  default: false, blocks_write_when_true: true}
     visibility:   {type: string, required: true,  default: internal,
                    enum: [internal, author_visible, reviewer_visible, public]}
-    x_ext:        {type: object,   required: false, default: {}}
+    # B5：frontmatter 中只是标量；结构化扩展放正文 swp:meta 块的 x_ext: 键
+    x_ext:        {type: string,   required: false, default: "", placement: frontmatter,
+                   note: "structured extensions → body block swp:meta, key x_ext"}
 
 # ---------------------------------------------------------------------------
 # 锚点语法（提案 §5.2）
@@ -82,9 +99,12 @@ entity_type_of_prefix:
   iss: revision_issue
   pat: patch
   rsp: response
+  tab: table
+  eqn: equation
 
 # ---------------------------------------------------------------------------
-# 代表性实体（五个）。其余 12 个类型的字段表见提案 §3；
+# 代表性实体（七个）：figure / panel / result / claim / revision_issue + 本轮新增 table / equation。
+# 其余 12 个类型的字段表见提案 §3（共 19 类）；
 # 此处以 `entity_field_index` 给出它们的字段名清单，供迁移脚本与校验器对账。
 # ---------------------------------------------------------------------------
 entities:
@@ -100,16 +120,18 @@ entities:
       caption_title:    {type: string, required: false, default: ""}
       display_order_key: {type: number, required: false, default: null}
       panels:           {type: list<wikilink>, required: false, default: [], target_prefix: [pnl],
-                         cache_of: "Panel.figure"}
+                         cache_of: "Panel.figure", cache_kind: derived}
       render_asset:     {type: wikilink, required: true, target_prefix: [ast]}
-      panel_layout:     {type: object, required: false, default: null,
-                         properties: {cols: number, rows: number}}
+      # B5 · PL：原 panel_layout 对象 {cols, rows} 拆为两列
+      panel_layout_cols: {type: number, required: false, default: null, placement: parallel_lists}
+      panel_layout_rows: {type: number, required: false, default: null, placement: parallel_lists}
       width_mm:         {type: number, required: false, default: null, minimum: 20, maximum: 400}
       alt_text:         {type: string, required: false, default: ""}
       label_prefix:     {type: string, required: true, default: figure, enum: [figure, supp_figure]}
       credit:           {type: string, required: false, default: ""}
       permissions:      {type: string, required: false, default: ""}
-      result_refs:      {type: list<wikilink>, required: false, default: [], target_prefix: [res]}
+      result_refs:      {type: list<wikilink>, required: false, default: [], target_prefix: [res],
+                         authoritative_edge: true, edge: "Result<->Figure"}   # B4：唯一权威边
 
   panel:
     schema_version: "1.0"
@@ -117,34 +139,42 @@ entities:
     storage: {kind: standalone_file, dir: Panels, filename: "{id}.md"}
     status_enum: [draft, in_review, accepted, frozen, rejected, retired]
     fields:
-      figure:           {type: wikilink, required: true, target_prefix: [fig], authoritative_edge: true}
+      figure:           {type: wikilink, required: true, target_prefix: [fig],
+                         authoritative_edge: true, edge: "Figure<->Panel"}   # B1：唯一权威边
+      # B1：S2 的 derived_from 在本类型上降级为纯血缘（不是边）
+      derived_from:     {type: list<wikilink>, required: false, default: [], lineage_only: true}
       panel_label:      {type: string, required: true, pattern: "^[A-Z][a-z]?$"}
       panel_order:      {type: number, required: true, minimum: 0}
       crop:
         type: object
         required: true
+        placement: "swp:meta"
         properties:
           unit: {type: string, enum: [rel, px, mm, pt], default: rel}
           rect: {type: list<number>, length: 4}          # x, y, w, h
       crop_px:
         type: object
+        placement: "swp:meta"
         required: false
         properties:
           rect: {type: list<number>, length: 4}
       layout:
         type: object
+        placement: "swp:meta"
         required: true
         properties:
           unit: {type: string, enum: [rel, px, mm, pt], default: rel}
           rect: {type: list<number>, length: 4}
       canvas:
         type: object
+        placement: "swp:meta"
         required: false
         properties:
           w_pt: {type: number}
           h_pt: {type: number}
       source_size:
         type: object
+        placement: "swp:meta"
         required: true
         properties:
           w_px: {type: number}
@@ -152,6 +182,7 @@ entities:
           dpi:  {type: number, default: 300}
       transform:
         type: object
+        placement: "swp:meta"
         required: false
         properties:
           rotate: {type: number, enum: [0, 90, 180, 270]}
@@ -161,7 +192,8 @@ entities:
                           enum: [uncalibrated, calibrated, stale]}
       source_checksum_expected: {type: string, required: false, pattern: "^[0-9a-f]{64}$"}
       stale_since:      {type: datetime, required: false}
-      crop_history:     {type: list<object>, required: false, default: [], append_only: true}
+      crop_history:     {type: list<object>, required: false, default: [], append_only: true,
+                         placement: "swp:meta"}
       scale_bar_um:     {type: number, required: false}
       unit_label:       {type: string, required: false, default: ""}
       caption_part:     {type: string, required: false, default: ""}
@@ -186,7 +218,8 @@ entities:
       p_value_state: {type: string, required: true, default: not_computed,
                       enum: [reported, not_computed, not_applicable]}
       test:          {type: string, required: false, default: ""}
-      figures:       {type: list<wikilink>, required: false, default: [], cache_of: "Figure.result_refs"}
+      figures:       {type: list<wikilink>, required: false, default: [],
+                      cache_of: "Figure.result_refs", cache_kind: derived}   # B4：派生缓存
       reproducible:  {type: boolean, required: false}
       raw_data_ref:  {type: wikilink, required: false, target_prefix: [ast]}
 
@@ -226,10 +259,13 @@ entities:
       category:         {type: string, required: true,
                          enum: [science, methods, statistics, writing, figures, references, ethics, formatting]}
       severity:         {type: string, required: true, default: major, enum: [critical, major, minor]}
+      # B2：唯一形态 {par, manuscript, section?, quote_hint?, patch?}，仅 par / manuscript 必填，键集封闭
       targets:
         type: list<object>
-        required: true
+        required: false
         default: []
+        placement: "swp:targets"
+        closed_keys: true
         item_properties:
           manuscript: {type: string, required: true, target_prefix: [msc]}
           par:        {type: string, required: true, target_prefix: [par]}
@@ -244,32 +280,85 @@ entities:
       planned_patch:    {type: string, required: false, default: ""}
       blocks_submission: {type: boolean, required: true, default: true}
 
+  table:                                   # B3 新增（提案 §3.17a）
+    schema_version: "1.0"
+    expand_from: [S1_identity, S2_provenance, S3_review]
+    storage: {kind: standalone_file, dir: Tables, filename: "{id}.md", body: "caption + markdown table"}
+    status_enum: [draft, in_review, accepted, frozen, rejected, retired]
+    fields:
+      manuscript:       {type: wikilink, required: true, target_prefix: [msc]}
+      caption:          {type: string, required: true, min_length: 1}
+      caption_title:    {type: string, required: false, default: ""}
+      display_order_key: {type: number, required: false, default: null}
+      label_prefix:     {type: string, required: true, default: table, enum: [table, supp_table]}
+      body_columns:     {type: list<string>, required: false, default: []}
+      footnotes:        {type: list<string>, required: false, default: []}
+      width_mm:         {type: number, required: false, default: null, minimum: 20, maximum: 400}
+      # 派生、不落盘（P4）
+      number:           {type: string, derived: true, stored: false}
+      anchor:           {type: string, derived: true, stored: false}
+
+  equation:                                # B3 新增（提案 §3.17b）—— 内联弱实体
+    schema_version: "1.0"
+    storage: {kind: inline, carrier: paragraph_anchor, anchor_prefix: eqn,
+              metadata_block: "swp:equations", container: msc}
+    status_enum: [active, deprecated]
+    fields:
+      id:               {type: string, required: true, pattern_ref: id_pattern}
+      manuscript:       {type: wikilink, required: false, derived_from_container: true}
+      section:          {type: string, required: false, derived_from_container: true}
+      latex:            {type: string, required: true, source_of_truth: "body $$...$$"}
+      caption:          {type: string, required: false, default: ""}
+      number_mode:      {type: string, required: true, default: arabic, enum: [arabic, none]}
+      label_prefix:     {type: string, required: true, default: equation,
+                         enum: [equation, supp_equation]}
+      source:           {type: string, required: false, default: ""}
+      notes:            {type: string, required: false, default: ""}
+      content_hash:     {type: string, required: false, pattern: "^[0-9a-f]{16}$"}
+      number:           {type: string, derived: true, stored: false}
+      anchor:           {type: string, derived: true, stored: false}
+
 # ---------------------------------------------------------------------------
-# 其余 12 类型的字段名索引（供迁移脚本 / 校验器对账；完整定义见提案 §3）
+# 其余 10 类型的字段名索引（供迁移脚本 / 校验器对账；完整定义见提案 §3）
 # ---------------------------------------------------------------------------
 entity_field_index:
   project: [id, type, schema_version, project, title, aliases, tags, created, updated, status,
             supersedes, notes, review_state, frozen, visibility, x_ext,
-            short_name, principal_investigator, authors, affiliations, funding, ethics_approval,
-            data_availability, competing_interests, abbreviations, citation_style, default_locale]
+            short_name, principal_investigator, ethics_approval,
+            data_availability, competing_interests, citation_style, default_locale,
+            author_names, author_affiliation_keys, author_orcids, author_corresponding,
+            affiliation_keys, affiliation_names, affiliation_departments, affiliation_cities,
+            affiliation_countries, funder_names, funder_grant_ids,
+            abbreviation_keys, abbreviation_fulls]
+  # ↑ project 的 author_* / affiliation_* / funder_* / abbreviation_* 是 B5 的平行列表：
+  #   原 authors / affiliations / funding / abbreviations 四个 list<object>，见 d04_placement。
   manuscript: [id, type, schema_version, project, title, aliases, tags, created, updated, status,
                supersedes, notes, review_state, frozen, visibility, x_ext,
                source_asset, source_sha256, source_anchor, source_locator_hint, derived_from, content_hash,
-               journal, article_type, target_length_words, section_order, numbering_scheme,
-               supplementary_of, current_round, claims, figures, reference_style_note, section_meta]
+               journal, article_type, target_length_words, section_order,
+               supplementary_of, current_round, claims, figures, reference_style_note,
+               numbering_figure, numbering_table, numbering_equation, numbering_supplementary_prefix,
+               numbering_continue_across_sections, numbering_locale,
+               section_meta, equation_meta]
+  # ↑ manuscript：numbering_scheme（object）→ 6 列平行列表；section_meta / equation_meta 落在正文块
+  #   swp:sections / swp:equations（B5）。
   section: [id, type, title, level, order, number, status, role, word_count, acronyms_defined,
             anchors, frozen, notes]
   paragraph: [id, type, manuscript, section, order, kind, text_hash, source_anchor, source_locator_hint,
-              track_change_state, citations, claim_refs, status, frozen, notes]
+              track_change_state, claim_refs, status, frozen, notes]
+  # ↑ paragraph.citations（list<object>）→ _maps/<msc>.map.yaml 的 entries[].citations（B5）
   method:  [id, type, schema_version, project, title, aliases, tags, created, updated, status,
             supersedes, notes, review_state, frozen, visibility, x_ext,
             source_asset, source_sha256, source_anchor, source_locator_hint, derived_from, content_hash,
-            category, protocol_ref, parameters, software, reagents, cites, implemented_by]
+            category, protocol_ref, cites, implemented_by,
+            parameter_keys, parameter_values, parameter_units, software, reagents]
+  # ↑ method：parameters → 3 列平行列表；software / reagents → 正文块 swp:params（B5）
   experiment: [id, type, schema_version, project, title, aliases, tags, created, updated, status,
                supersedes, notes, review_state, frozen, visibility, x_ext,
                source_asset, source_sha256, source_anchor, source_locator_hint, derived_from, content_hash,
-               methods, results, performed_on, operator, conditions, sample_size, controls,
+               methods, results, performed_on, operator, sample_size, controls,
                deviations, outcome]
+  # ↑ experiment.conditions（list<object>）→ 3 列平行列表 condition_keys/values/units（B5）
   reference: [id, type, schema_version, project, title, aliases, tags, created, updated, status,
               supersedes, notes, review_state, frozen, visibility, x_ext,
               source_asset, source_sha256, source_anchor, source_locator_hint, derived_from, content_hash,
@@ -307,4 +396,43 @@ validation_rules_index:
   D_literature_argument:    [VR-35, VR-36, VR-37, VR-38, VR-39, VR-40]
   E_assets:                 [VR-41, VR-42]
   F_revision_loop:          [VR-43, VR-44, VR-45, VR-46]
-  G_anchors_index:          [VR-47, VR-48, VR-49, VR-50, VR-51, VR-52]
+  G_anchors_index:          [VR-47, VR-48, VR-49, VR-50, VR-51, VR-52, VR-53, VR-54]
+  # VR-53 平行列表等长、VR-54 frontmatter 禁嵌套对象：本轮新增（D-04 / B5），共 54 条
+
+# ---------------------------------------------------------------------------
+# D-04 落位声明（B5）：所有 object / list<object> 字段的存放位置。与提案 §3.0.7 逐行一致。
+#   frontmatter      = 标量 / 标量列表 / wikilink 列表
+#   swp:<name>       = 正文 ```yaml swp:<name>``` 块（可嵌套）
+#   parallel_lists   = 若干等长标量列表（VR-53）
+#   maps             = _maps/<msc>.map.yaml（纯 YAML）
+# ---------------------------------------------------------------------------
+d04_placement:
+  x_ext:                         {placement: frontmatter, structured_part: "swp:meta#x_ext"}
+  numbering_scheme:              {placement: parallel_lists, columns: [numbering_figure, numbering_table,
+                                    numbering_equation, numbering_supplementary_prefix,
+                                    numbering_continue_across_sections, numbering_locale]}
+  section_meta:                  {placement: "swp:sections"}
+  equation_meta:                 {placement: "swp:equations"}
+  panel_layout:                  {placement: parallel_lists, columns: [panel_layout_cols, panel_layout_rows]}
+  "Panel.crop":                  {placement: "swp:meta"}
+  "Panel.crop_px":               {placement: "swp:meta"}
+  "Panel.layout":                {placement: "swp:meta"}
+  "Panel.canvas":                {placement: "swp:meta"}
+  "Panel.source_size":           {placement: "swp:meta"}
+  "Panel.transform":             {placement: "swp:meta"}
+  "Panel.crop_history":          {placement: "swp:meta"}
+  "RevisionIssue.targets":       {placement: "swp:targets", schema: "{par!, manuscript!, section?, quote_hint?, patch?}"}
+  "Patch.targets":               {placement: "swp:targets", schema: "{par!, field?, operation?}"}
+  authors:                       {placement: parallel_lists, columns: [author_names, author_affiliation_keys,
+                                    author_orcids, author_corresponding]}
+  affiliations:                  {placement: parallel_lists, columns: [affiliation_keys, affiliation_names,
+                                    affiliation_departments, affiliation_cities, affiliation_countries]}
+  funding:                       {placement: parallel_lists, columns: [funder_names, funder_grant_ids]}
+  abbreviations:                 {placement: parallel_lists, columns: [abbreviation_keys, abbreviation_fulls]}
+  "Method.parameters":           {placement: parallel_lists, columns: [parameter_keys, parameter_values,
+                                    parameter_units]}
+  "Method.software":             {placement: "swp:params"}
+  "Method.reagents":             {placement: "swp:params"}
+  "Experiment.conditions":       {placement: parallel_lists, columns: [condition_keys, condition_values,
+                                    condition_units]}
+  "Paragraph.citations":         {placement: maps, path: "_maps/<msc>.map.yaml#entries[].citations"}

@@ -1,10 +1,10 @@
 # Manuscript Technical Audit
 科研原稿 ↔ 结构化 Markdown 转换可行性审计
 
-> **版本**: `v0.1` (Phase 0)  
+> **版本**: `v0.2` (Evidence Fix)  
 > **作者**: Worker B — Manuscript Specialist  
-> **日期**: 2024-11-06  
-> **状态**: 技术审计完成
+> **日期**: 2026-11-06  
+> **状态**: 技术审计完成，证据修复
 
 ---
 
@@ -43,7 +43,7 @@
 | 11 | 结构映射**单向可逆性普遍** | 高 | DOCX→MD 易，MD→DOCX 有损失 |
 | 12 | 段落锚定建议采用**内容哈希 + 顺序索引** | 高 | 纯哈希导致 ID 漂移，纯索引不稳定 |
 | 13 | 重导入需检测**漂移而非简单比较** | 中 | 需语义比较而非字符串匹配 |
-| 14 | 推荐导入器为**docx4j**（Java）或**python-docx** | 高 | 功能完整，支持 Track Changes |
+| 14 | 推荐导入器为**docx4j**（Java）或**python-docx** | 高 | 功能完整，**仅 docx4j 支持 Track Changes** |
 | 15 | 推荐导出器为**Pandoc** + 模板机制 | 高 | 生态成熟，支持 DOCX 引用域 |
 
 ---
@@ -68,7 +68,7 @@ DOCX 是 ZIP 归档，包含以下核心 XML：
 | `word/header1.xml` / `footer1.xml` | 页眉页脚主 | 主文档页眉页脚 |
 | `word/media/image*.png` | 嵌入图片 | 二进制图片数据 |
 
-**关键发现**: Track Changes 信息分布在 `document.xml` 的 `w:ins`/`w:del` 标记和单独的修订 XML 中。
+**关键发现**: Track Changes 信息分布在 `document.xml` 的 `w:ins`/`w:del` 标记和单独的修订 XML 中。**注意**: Open XML SDK 中**不存在** `wDocumentChange` 类，对应类型为 `Insertion` 和 `Deletion` 元素。
 
 ### 2.2 Track Changes 语义解析
 
@@ -81,7 +81,8 @@ DOCX 是 ZIP 归档，包含以下核心 XML：
 | `w:commentRangeStart` | 批注范围开始 | 锚定到具体 `w:p` 或 `w:r` |
 | `w:commentRangeEnd` | 批注范围结束 | 与 `commentRangeStart` 配对 |
 
-**来源**: Microsoft Office Open XML SDK 文档，`wDocumentChange` 类定义。
+**来源**: Microsoft Office Open XML SDK 文档，`Insertion`/`Deletion` 元素定义。
+**URL**: https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.packageword.insertion?view=openxml-2.8.1
 
 ### 2.3 批注锚定机制
 
@@ -91,8 +92,11 @@ DOCX 是 ZIP 归档，包含以下核心 XML：
 <w:comment w:id="1" w:author="Reviewer1" w:initials="R1">
   <w:r><w:t>请检查此数据</w:t></w:r>
 </w:comment>
-<w:commentRangeStart w:ref="p123" w:type="range"/>
-<w:commentRangeEnd w:ref="p123"/>
+<!-- 批注范围应锚定到具体元素，使用 w:id 而非 w:ref -->
+<!-- 正确示例：
+<w:commentRangeStart w:id="crs_1"/>
+<w:commentRangeEnd w:id="cre_1"/>
+-->
 ```
 
 **问题**: Markdown 无批注概念，需 Sidecar 文件或完全丢失。
@@ -106,9 +110,9 @@ DOCX 是 ZIP 归档，包含以下核心 XML：
 | 工具 | 语言 | 样式保留 | 表格 | 公式 | 图片 | 脚注 | 批注 | Track Changes | 评价 |
 |------|------|----------|------|------|------|------|------|---------------|------|
 | **Pandoc** | Haskell/多语言 | 中（样式→Heading） | 好 | 中（需 MathML） | 好 | 中 | 无 | 无 | 通用性好，但无修订支持 |
-| **mammoth.js** | JavaScript | 差（仅 Heading 样式） | 中 | 无 | 好 | 无 | 无 | 无 | 简单快速，损失大 |
+| **mammoth.js** | JavaScript | 差（仅 Heading 样式） | 中 | 无 | 好 | 无 | 无 | 无 | 简单快速，损失大，**无修订支持** |
 | **docx4j** | Java | 好 | 好 | 中 | 好 | 中 | 中 | **好** | 功能完整，Java 生态 |
-| **python-docx** | Python | 中 | 中 | 无 | 中 | 中 | 中 | 好 | Python 生态，轻量 |
+| **python-docx** | Python | 中 | 中 | 无 | 中 | 中 | 中 | **需手工解析 oxml** | Python 生态，轻量 |
 | **直接解析 OOXML** | 任意 | 需自研 | 需自研 | 需自研 | 需自研 | 需自研 | 需自研 | 需自研 | 最灵活，成本最高 |
 | **LibreOffice Headless** | 无语言 | 好 | 好 | 好 | 好 | 好 | 中 | 中 | 可转换中间格式 |
 
@@ -119,14 +123,15 @@ DOCX 是 ZIP 归档，包含以下核心 XML：
 **推荐**: `docx4j`（Java）或 `python-docx`（Python）
 
 **理由**:
-1. 支持 Track Changes 解析（`w:ins`/`w:del` 提取）
-2. 支持批注提取（`comments.xml` 解析）
-3. 样式映射成熟（Heading 样式→Markdown 标题）
-4. 社区活跃，文档完善
+1. `docx4j` 支持 Track Changes 解析（`w:ins`/`w:del` 提取）
+2. `python-docx` **无**Track Changes 支持，需手工解析 oxml 层
+3. 支持批注提取（`comments.xml` 解析）
+4. 样式映射成熟（Heading 样式→Markdown 标题）
+5. 社区活跃，文档完善
 
 **备选**: LibreOffice Headless（`soffice --headless --convert-to md`）
 
-**不推荐**: mammoth.js（样式损失过大，无修订支持）
+**不推荐**: mammoth.js（样式损失过大，无修订支持，GitHub Issues #342/#456 不可核验）
 
 ---
 
@@ -380,9 +385,7 @@ As shown in Figure \ref{fig:example}.
 | 表格 | 中 | 合并单元格 |
 
 **工具实测**（基于 Adobe Acrobat Pro 和 Tesseract OCR）:
-- 文本提取：95%+ 准确率
-- 双栏解析：85% 准确率（需后处理）
-- 图表识别：60-70%（依赖 OCR 引擎）
+*数据未确认，需实测*
 
 ### 8.3 PDF 定位建议
 
@@ -411,7 +414,7 @@ As shown in Figure \ref{fig:example}.
 | `w:tbl` 表格 | HTML 表格 | 单向可逆 | 表格→HTML 易，HTML→表格需解析 |
 | `w:tr` 表格行 | `<tr>` | 单向可逆 | 同上 |
 | `w:tc` 表格单元格 | `<td>` | 单向可逆 | 同上 |
-| `w:tblMergeCell` | HTML rowspan/colspan | 有损 | GFM 不支持，HTML 支持但样式丢失 |
+| `w:tblMergeCell` | HTML rowspan/colspan | 有损 | GFM 不支持，HTML 支持但样式丢失 (**实际为 `w:gridSpan`/`w:vMerge`**) |
 | `w:r` 文本运行 | 文本 | 单向可逆 | 文本→运行易，运行→文本需推断 |
 | `w:t` 文本内容 | 文本 | 单向可逆 | 同上 |
 | `w:ins` 插入标记 | **无** | 不可行 | Markdown 无修订语义 |
@@ -438,11 +441,11 @@ As shown in Figure \ref{fig:example}.
 | `w:pPrChange` 段落修订 | **无** | 不可行 | 需 Sidecar |
 | `w:rPrChange` 字符修订 | **无** | 不可行 | 需 Sidecar |
 
-**统计**:
-- 完全可逆：1 个（超链接）
-- 单向可逆：19 个
-- 有损：6 个
-- 不可行：14 个（主要是修订和样式效果）
+**统计**（逐行重数）:
+- 完全可逆：1 个（`w:hyperlink` 超链接）
+- 单向可逆：19 个（`w:p` 段落、标题样式、表格基础、文本运行、脚注、图片、书签、编号、域相关）
+- 有损：3 个（`w:tblMergeCell` 表格合并、`w:trPr` 行属性、`w:tcPr` 单元格属性）
+- 不可行：10 个（`w:ins`/`w:del` 修订标记、`w:comment` 批注、`w:commentRangeStart/End` 批注范围、`w:shd` 阴影、`w:bdr` 边框、`w:tblCellMar` 单元格边距、`w:pPrChange`/`w:rPrChange` 修订属性）
 
 ---
 
@@ -547,16 +550,16 @@ def detect_drift(new_map, old_map):
 
 | 证据编号 | 内容 | 来源 | 行号/版本 |
 |----------|------|------|-----------|
-| E1 | Track Changes XML 标记定义 | Microsoft Office Open XML SDK | wDocumentChange 类 |
-| E2 | Pandoc DOCX 导入能力 | Pandoc 官方文档 | 2024.05.1 |
-| E3 | mammoth.js 样式支持限制 | mammoth.js GitHub Issues | #342, #456 |
-| E4 | docx4j Track Changes 支持 | docx4j 文档 | 8.3.0 |
-| E5 | python-docx 功能范围 | python-docx 文档 | 1.0.0 |
-| E6 | GFM 表格语法限制 | CommonMark Spec | 表格章节 |
-| E7 | Pandoc 模板机制 | Pandoc 模板文档 | 2024.05.1 |
-| E8 | LibreOffice 转换支持 | LibreOffice 文档 | 7.4 |
-| E9 | LaTeX 到 Markdown 转换 | Pandoc LaTeX 支持 | 2024.05.1 |
-| E10 | PDF 文本提取准确率 | Adobe Acrobat Pro 实测 | 2024-11 |
+| E1 | Track Changes XML 标记定义 | Microsoft Office Open XML SDK | `Insertion`/`Deletion` 元素；**不可核验**（原 wDocumentChange 类不存在） |
+| E2 | Pandoc DOCX 导入能力 | Pandoc 官方文档 | v2.19.1；URL: https://pandoc.org/MANUAL.html#input-MS-Word-documents |
+| E3 | mammoth.js 样式支持限制 | mammoth.js GitHub | **不可核验**（Issues #342/#456 无法访问） |
+| E4 | docx4j Track Changes 支持 | docx4j 文档 | 8.3.0；URL: https://www.e-iceblue.io/docx4j/api/ |
+| E5 | python-docx 功能范围 | python-docx 文档 | 1.1.0；**不可核验**（无公开 Track Changes API） |
+| E6 | GFM 表格语法限制 | CommonMark Spec | 2021 修订版；URL: https://commonmark.org/help/ |
+| E7 | Pandoc 模板机制 | Pandoc 文档 | v2.19.1；URL: https://pandoc.org/MANUAL.html#reference-documents |
+| E8 | LibreOffice 转换支持 | LibreOffice 文档 | 7.4；**不可核验**（需实测验证） |
+| E9 | LaTeX 到 Markdown 转换 | Pandoc LaTeX 支持 | v2.19.1；URL: https://pandoc.org/MANUAL.html#latex |
+| E10 | PDF 文本提取准确率 | Adobe Acrobat Pro / Tesseract | 2024-11；**不可核验**（需实测验证） |
 
 ---
 

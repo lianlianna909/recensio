@@ -19,7 +19,7 @@ notes: ""
 review_state: in_review
 frozen: false
 visibility: internal
-x_ext: {}
+x_ext: ""                            # D-04：frontmatter 只能是标量
 
 source_asset: "[[ast_J8KP2NRT]]"
 source_sha256: "3f9a1c0e77b2d4e6a8c1f0b2938d5e4716a9b3c2d0e8f7a6b5c4d3e2f1a0b9c8"
@@ -31,24 +31,30 @@ content_hash: "b4e1f09c22d7a365"
 journal: "Example Oncology Journal"
 article_type: research_article
 target_length_words: 4500
-numbering_scheme:
-  figure: arabic
-  table: arabic
-  equation: arabic
-  supplementary_prefix: "S"
-  continue_across_sections: true
-  locale: inherit
+numbering_figure: arabic
+numbering_table: arabic
+numbering_equation: arabic
+numbering_supplementary_prefix: "S"
+numbering_continue_across_sections: true
+numbering_locale: inherit
 supplementary_of: null
 current_round: "[[rnd_Q3F7KM2P]]"
 claims: ["[[clm_3XB8NRT5]]", "[[clm_9WD4PKMR]]"]   # 派生缓存
 figures: ["[[fig_7K3M9Q2P]]"]                        # 派生缓存
 reference_style_note: "Vancouver, as per author guidelines §4.2"
 section_order: ["[[sec_4M2P8QKT]]", "[[sec_7B3N5RTW]]", "[[sec_2JX9KQMW]]"]  # 派生
-section_meta:
-  - {id: sec_4M2P8QKT, role: body,        level: 1, frozen: false}
-  - {id: sec_7B3N5RTW, role: results,     level: 2, frozen: false}
-  - {id: sec_2JX9KQMW, role: discussion,  level: 2, frozen: false}
 ---
+
+```yaml swp:sections
+# D-04：结构化字段进正文块（§3.0.6）；title/level 以正文标题为准
+- {id: sec_4M2P8QKT, role: body,       status: draft, frozen: false, acronyms_defined: [TGI], notes: ""}
+- {id: sec_7B3N5RTW, role: results,    status: draft, frozen: false, acronyms_defined: [],    notes: ""}
+- {id: sec_2JX9KQMW, role: discussion, status: draft, frozen: false, acronyms_defined: [],    notes: ""}
+```
+
+```yaml swp:meta
+x_ext: {}
+```
 
 ## Introduction ^sec_4M2P8QKT
 
@@ -64,7 +70,7 @@ The initial dose of 10 mg/kg produced a {{res:res_5RTV2WQK|fmt=31.0}} reduction 
 
 {{fig:fig_7K3M9Q2P}}
 
-As shown in {{figref:fig_7K3M9Q2P}}, the effect was dose-dependent, and in particular {{pnl:pnl_4ZQ7NWKB}} shows the plateau above 20 mg/kg ^par_8RK1MTXD
+As shown in {{figref:fig_7K3M9Q2P}}, the effect was dose-dependent, and in particular {{figref:fig_7K3M9Q2P#B}} shows the plateau above 20 mg/kg ^par_8RK1MTXD
 
 These observations support our central claim [[clm_3XB8NRT5]] ^par_3TW6PQRS
 
@@ -77,7 +83,8 @@ These observations support our central claim [[clm_3XB8NRT5]] ^par_3TW6PQRS
   [[ref_XXXXXXXX#locator=…|role=…]]  引文（弱 Citation，提案 §3.11）
   [[clm_XXXXXXXX]]                 段落表达的论断（提案 §3.12）
   {{fig:…}}                        图定义点（决定图号，提案 §6.3）
-  {{figref:…}} / {{pnl:…}}         图号引用（渲染为 "Figure 3" / "Figure 3B"）
+  {{figref:…}} / {{figref:…#B}}    图号引用 / 面板引用（渲染为 "Figure 3" / "Figure 3B"）
+  {{tabref:…}} / {{eqref:…}}       表号 / 公式号引用（提案 §6.0.4）
   {{res:…|fmt=…}}                  数值注入（提案 §6.9）
 
 § 若 Obsidian 块 ID 不接受下划线（待 Worker A 审计 U2），
@@ -115,4 +122,5 @@ import_runs:
 > `{{res:res_5RTV2WQK|fmt=31.0}}` → `31.0 ± 4.2 (n = 8) %`
 > `{{fig:fig_7K3M9Q2P}}` → 图片 + `Figure 1. Dose–response of tumour volume to compound X.`
 > `{{figref:fig_7K3M9Q2P}}` → `Figure 1`
-> `{{pnl:pnl_4ZQ7NWKB}}` → `Figure 1B`
+> `{{figref:fig_7K3M9Q2P#B}}` → `Figure 1B`
+> `{{pnl:pnl_4ZQ7NWKB}}` → `Figure 1B`（知道面板 ID 时的等价写法）
