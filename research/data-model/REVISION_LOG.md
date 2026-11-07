@@ -58,7 +58,7 @@
 **缺陷（QA §4 B3，总控裁定）**：`{{tab:}}`、`{{eq:}}`、`{{figref:…#B}}` 在正文语法里有，实体清单里没有；`{{pnl:}}` 在 §3.18 词汇表缺失；ID 前缀、块锚点、TOKEN、哈希剥离四类文法在 §3/§5/§6 各写一套，其中 §6.7 的 `[a-z]{3}_` 与 `eq_` 两字母前缀直接冲突——这就是审计复现报错的根因。
 
 **修复**
-1. **新增 Table（`tab_`）**：§3.17a，独立文件 `Tables/tab_x.md`，完整字段表（`caption` / `caption_title` / `number`（派生不落盘）/ `anchor`（派生）/ `label_prefix` / `body_columns` / `footnotes` / `source_asset` / `source_anchor` / `width_mm` …）。
+1. **新增 Table（`tab_`）**：§3.17a，独立文件 `Tables/tab_XXXXXXXX.md`，完整字段表（`caption` / `caption_title` / `number`（派生不落盘）/ `anchor`（派生）/ `label_prefix` / `body_columns` / `footnotes` / `source_asset` / `source_anchor` / `width_mm` …）。
 2. **新增 Equation（`eqn_`）**：§3.17b，内联弱实体，ID 权威 = 公式行尾 `^eqn_…`，元数据进 `swp:equations`；`number` / `anchor` 为派生不落盘。
 3. **实体总数 17 → 19**：§2.1 关系图、§2.2 清单（第 18/19 行）、§3.0.1 前缀注册表、§9.1、§11.4 W3、附录 A/B、§13 全部同步；全文不再出现「17 个实体」表述。
 4. **`#panel` 进入 TOKEN 文法**：`PANEL_LETTER := [A-Z][0-9]?`，只允许出现在 `figref` / `pnl`（语法层接受，语义层拒绝，VR-06）。

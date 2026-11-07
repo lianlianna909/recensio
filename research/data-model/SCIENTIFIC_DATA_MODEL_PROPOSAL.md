@@ -4,7 +4,7 @@
 > 作者：Worker C — Scientific Modeler
 > 状态：提案（Proposal），非规范（Spec）。落地前需 Worker A（Obsidian 能力审计）、Worker B（原稿转换审计）交叉确认。
 > 适用范围：Obsidian 宿主 + Markdown 文件 + YAML Properties 的**纯文件**数据模型。
-> 修订说明见 §13；逐条证据见 `REVISION_LOG.md`；可执行测试向量见 `tests/grammar_vectors.md`（由 `tests/run_vectors.py` 生成与执行）。
+> 修订说明见 §13；逐条证据见 `REVISION_LOG.md`；Phase 1 门禁修复（G1-1…G1-7）见 `GATE_FIX_LOG.md`；可执行测试向量见 `tests/grammar_vectors.md`（由 `tests/run_vectors.py` 生成与执行）。
 
 **阅读约定**
 
@@ -45,7 +45,7 @@
 
 ### P4 — 编号是派生的，不是存储的（Numbers are Computed）
 
-`Figure 3` 不是数据，是视图。文件里存 `fig_7K3M9Q`，`Figure 3` 在渲染时由编号解析器算出。任何把编号硬写进正文的做法（`Figure 3` 字面量）都被视为**待迁移的遗留状态**，由校验规则 VR-07 拦截。否定理由见 §6.6。
+`Figure 3` 不是数据，是视图。文件里存 `fig_7K3M9Q2P`，`Figure 3` 在渲染时由编号解析器算出。任何把编号硬写进正文的做法（`Figure 3` 字面量）都被视为**待迁移的遗留状态**，由校验规则 VR-07 拦截。否定理由见 §6.6。
 
 ### P5 — 原始件不可变（Originals are Immutable）
 
@@ -118,7 +118,6 @@ graph TD
   SEC -->|has| PAR
   EXP -->|executes| MTH
   EXP -->|produces| RES
-  RES -->|evidenced_by| FIG
   FIG -->|has| PNL
   FIG -->|renders| AST
   PNL -->|crops| AST
@@ -143,7 +142,7 @@ graph TD
 
 > 实线 = 强引用（目标文件必须存在）；虚线 = 弱引用/可空引用。
 > `Section`、`Paragraph`、`Equation` 为弱实体（内联，非独立文件），`Citation` 为默认弱实体、可晋升。
-> `FIG -->|result_refs| RES` 是 P2 表中 Result↔Figure 的**唯一权威边**（B4）。
+> `FIG -->|result_refs| RES` 是 P2 表中 Result↔Figure 的**唯一权威边**（B4）。其反向视图（"某 Result 被哪些 Figure 呈现"）由索引层派生、**不落盘**（P2），故图中**不画** `RES → FIG` 反向边；`Result.figures` 只是该派生视图的缓存字段（§3.7、§4.1a），不是第二条边。
 
 ### 2.2 实体清单与存在理由一句话表
 
@@ -487,7 +486,7 @@ ID 前缀、块锚点 `^par_…`、token `{{kind:id}}`、哈希剥离用的 `ANC
 | `reference_style_note` | text | 否 | 空 | 期刊特例说明 |
 
 **生命周期**
-- 创建：导入管道（Worker B 的 DOCX→MD）或"新建空稿"；创建时同步生成 `_maps/msc_x.map.yaml`。
+- 创建：导入管道（Worker B 的 DOCX→MD）或"新建空稿"；创建时同步生成 `_maps/<msc_id>.map.yaml`。
 - 修改：正文编辑自由；`status` 迁移必须符合状态机；`submitted` 时生成快照哈希写 `_index/` 并在 `RevisionRound` 中登记。
 - 废弃：`status: withdrawn` 或 `supersedes` 链；不删除（Reference/Citation 指向它）。
 
@@ -510,7 +509,7 @@ ID 前缀、块锚点 `^par_…`、token `{{kind:id}}`、哈希剥离用的 `ANC
 ### 2.1 结果小节示例 ^sec_7B3N5RTW
 ```
 
-- `[待审计]` Obsidian 的块 ID 允许字符集是否为 `[A-Za-z0-9-]`，是否允许下划线 `_`。若**不允许**下划线，则改用连字符写法 `^sec-4M2P8QKT`，ID 值本身不变（仅锚点前缀符改变），由 §5.6 的锚点编解码器统一处理。**这是本提案唯一一处"取决于审计结论"的语法细节，模型语义不受影响。**
+- **下划线合法性已确认（交叉确认 C1，2026-11-06 回填）**：Obsidian 官方帮助站自身渲染的页面含带 `_` 的块 ID（如 `^callout-internal-links-link-text`），证明 `_` **可以保留**，主写法 `^sec_4M2P8QKT` 不变。连字符写法 `^sec-4M2P8QKT` 降级为**保险丝**（同一 ID 的等价拼写，仅当某版本收紧字符集时由 §5.6 编解码器统一启用，对上层透明）。C1 同时登记：块 ID **大小写敏感性未能确认**——ID 生成器只输出大写 + 数字（Crockford 字母表本就如此），判重不得依赖"大小写不同即不同 ID"。
 - 章节级**附加元数据**不写进标题行（否则污染正文），而是写在 Manuscript 正文的 ```` ```yaml swp:sections ```` 块中（B5 / D-04 落位；块结构见 §3.0.6，字段见 §3.2 的 `section_meta` 行）。这是 §3.0.2 中"内联弱实体 + 容器承载元数据"的统一模式。
 
 | 字段名 | 类型 | 必填 | 默认值 | 约束与说明 |
@@ -531,6 +530,7 @@ ID 前缀、块锚点 `^par_…`、token `{{kind:id}}`、哈希剥离用的 `ANC
 
 > `section_meta` 的承载形式**已定为正文 `swp:sections` 块**（§3.0.6，D-04 ACCEPTED），不再是 `[待审计]` 项；§10/R4 由"风险"降为"已裁定"。
 > `[待审计]` Obsidian 是否会改写正文中的 fenced code block（D-04 成立的前提，见 §10/C4，属 Worker A 的交叉确认项）；若结论为"会改写"，退路是 `swp:sections` 迁到 `_maps/`（与 `entries` 同级），语义不变。
+> **标题挂锚点（交叉确认 C2，2026-11-06 回填）**：`[[#^id]]` 引用语法本身**已确认**；"锚点挂在标题行"官方无例证、判定为**未能确认**，但 `SectionCache.id`（注释 "The block ID of this section"）提供了缓存层落点，且官方"不支持链接"清单不含标题。退路已备：若实测不成立，**权威方向反转**——以 `section_meta[].id` 为权威，正文改用"标题下一行单独一行写 `^sec_…`"的段落式挂法（该形式有官方例子背书）。实测前 `sec_` 由标题锚点与 `section_meta` 镜像互保（VR-29），不单点依赖标题锚点。
 
 **生命周期**
 - 创建：导入时按 Heading 样式生成；手写时输入标题 + 锚点。
@@ -1322,14 +1322,14 @@ crop_history:
 | `caption` | text | 是 | — | 题注全文（**不含表号前缀**；表号由渲染器加，§6.6） |
 | `caption_title` | text | 否 | 空 | 题注中的加粗短标题（`**Title.** rest...`） |
 | `number` | text | 否 | 派生 | **不落盘**：由 §6.3 `resolveNumbering()` 计算的 `Table 2` / `Table S1`；只出现在导出物与 `_index/numbering.json`（P4） |
-| `anchor` | text | 否 | 派生 | **不落盘**：本文正文中 `{{tab:tab_x}}` 定义点的块 ID（渲染时由解析器绑定到 HTML `id`，用于 PDF/HTML 内部跳转） |
+| `anchor` | text | 否 | 派生 | **不落盘**：本文正文中 `{{tab:tab_4XQ7NWKB}}` 定义点的块 ID（渲染时由解析器绑定到 HTML `id`，用于 PDF/HTML 内部跳转） |
 | `label_prefix` | text | 是 | `table` | `table` / `supp_table`；决定是否走 `S` 前缀（§6.3） |
 | `display_order_key` | number | 否 | 空 | 显式排序键；默认按正文定义点顺序 |
 | `body_columns` | list<text> | 否 | `[]` | 表头列名（标量列表，供校验"表格列数与表头一致"） |
 | `footnotes` | list<text> | 否 | `[]` | 表注（按出现顺序），标量列表 |
 | `width_mm` | number | 否 | 空 | 目标印刷宽度；导出用 |
 
-**正文承载**（D-04）：正文只写**定义点 token**，表体与题注由渲染器从本文件（`Tables/tab_x.md`）的正文拼装：
+**正文承载**（D-04）：正文只写**定义点 token**，表体与题注由渲染器从本文件（`Tables/tab_4XQ7NWKB.md`）的正文拼装：
 
 ```markdown
 <!-- 在 Manuscript 正文中，定义点决定表号（§6.3） -->
@@ -1429,12 +1429,18 @@ crop_history:
 
 1. 本表出现的每个 `kind` ∈ §6.0.4 `TOKEN_KINDS`；每个 ID 前缀 ∈ §6.0.2 的 19 个前缀。
 2. `{{pnl:…}}` **保留**（裁定：补入词汇表而非删除），理由见 §6.0.4 规则 4：Panel 有独立 ID，删除将失去"按 ID 指涉一个具体面板"的能力。
-3. `{{figref:…}}` 的 `#panel` 片段由 §6.0.4 接受；`{{pnl:…}}` 同样接受 `#panel`（用于"面板 ID + 显式字母覆盖"的归一化场景）。
+3. `{{figref:…}}` 的 `#panel` 片段由 §6.0.4 接受；`{{pnl:…}}` 同样接受 `#panel`（用于"面板 ID + 显式字母断言"的归一化自检场景）。**字母的权威来源是 `Panel.panel_label`**：token 上的字母只作渲染期断言，不一致报 VR-06，仲裁见 §6.0.4 规则 4（G1-2）。
 4. `{{tab:}}`/`{{tabref:}}` 归属 **Table（`tab_`）**；`{{eq:}}`/`{{eqref:}}` 归属 **Equation（`eqn_`）**——token 种类名与 ID 前缀的映射表在 §6.0.2，不在本表。
 5. 多目标引用（`Figures 3 and 4`）不扩展 TOKEN，写并列 token（§6.0.4 规则 3、§6.7）。
-6. **`[[mth_…]]` / `[[exp_…]]` 的取舍（B3 自查）**：§6.0.4 的 `TOKEN_KINDS` 中**没有** `mth`/`exp`，因此正文里写 `{{mth:…}}`/`{{exp:…}}` 不会被识别为 token（按 §6.0.4 规则 5 视为普通文本）。方法/实验的正文指涉走 **wikilink**（`[[mth_x]]`，Obsidian 原生可跳转），与 §6.0.2 表中「`mth`/`exp` 无 token」一致。本条是 draft-1 遗留的一处过度声明，draft-2 明确为 wikilink。
+6. **`[[mth_…]]` / `[[exp_…]]` 的取舍（B3 自查）**：§6.0.4 的 `TOKEN_KINDS` 中**没有** `mth`/`exp`，因此正文里写 `{{mth:…}}`/`{{exp:…}}` 不会被识别为 token（按 §6.0.4 规则 5 视为普通文本）。方法/实验的正文指涉走 **wikilink**（`[[mth_XXXXXXXX]]`，Obsidian 原生可跳转），与 §6.0.2 表中「`mth`/`exp` 无 token」一致。本条是 draft-1 遗留的一处过度声明，draft-2 明确为 wikilink。
 
-**为什么用 `{{type:id}}` 而不是纯 wikilink**：wikilink 只能表达"链接到对象"，无法表达"以某种格式渲染的数值/编号"；`[待审计]` Obsidian 的嵌入语法 `![[fig_x]]` 只能嵌入整页。`{{...}}` 需要在渲染时被插件转换为链接或文本 —— 见 §6.6 的"渲染时解析"路径，以及"写入时固化"降级路径。
+**为什么用 `{{type:id}}` 而不是纯 wikilink**：wikilink 只能表达"链接到对象"，无法表达"以某种格式渲染的数值/编号"；`[待审计]` Obsidian 的嵌入语法 `![[fig_XXXXXXXX]]` 只能嵌入整页。`{{...}}` 需要在渲染时被插件转换为链接或文本 —— 见 §6.6 的"渲染时解析"路径，以及"写入时固化"降级路径。
+
+**与 Templates 核心插件语法同形的风险（交叉确认 C5，2026-11-06 回填）**：`{{figref:fig_…}}` 与 Templates 的模板变量 `{{title}}`/`{{date}}`/`{{time}}`（含带参形 `{{date:YYYY-MM-DD}}`）**形状同构**（都是 `{{name:arg}}`）。Templates 只在执行 `Insert template` 命令时替换，对已写好的正文不自动生效；且官方变量表不含 `figref`/`fig`/`res`/`pat` 等名——但"未列出的变量名一律不动"这一假设**未被官方文本确认**。缓解（按优先级）：
+1. **判别式收紧（已内建于文法）**：本模型 token 必须含 `kind:` 且 ID 匹配 `ID_RE`（含 `_` + 8 位 B32）；模板变量 `{{date}}`/`{{date:…}}` 不可能满足，二者不会互相误解析。
+2. **保留字拦截**：`{{title}}`/`{{date}}`/`{{time}}` 及其带参形列为保留字，导入/保存校验（VR-06 的"形如 token 但非法"分支）拦截正文中出现的裸模板变量形。
+3. **操作约束**：稿件正文不得放入 Templates 的模板文件夹，避免被 `Insert template` 扫到。
+4. **退路**：若冲突坐实，统一加私有命名空间前缀 `{{swp:figref:…}}`（C5 首选改造；属 MAJOR 语法变更，需迁移脚本，见 §7）。
 
 ---
 
@@ -1458,7 +1464,7 @@ crop_history:
 | 方案 | 表达 | 一致性维护成本 | 断链风险 | 属性放哪 |
 | --- | --- | --- | --- | --- |
 | A | `Panel.figure` 单值；`Figure.panels[]` 为派生缓存 | 低：一个写入点 | 中：Panel 删了 Figure 缓存过期 | Panel 自身 |
-| B | `FigPanel/pnl_x--fig_y.md` | 高：24 个面板 = 24 个边文件 | 低 | 边文件 |
+| B | `FigPanel/pnl_XXXXXXXX--fig_XXXXXXXX.md` | 高：24 个面板 = 24 个边文件 | 低 | 边文件 |
 | C | 双方都写列表 | 高：每次增删面板改两个文件 | 低（但可能不一致） | 双方重复 |
 
 **选型：A**。理由：关系是**函数依赖**（每个 Panel 有且仅有一个 Figure），不存在"边属性"，方案 B 只会制造文件；方案 C 的双写必然在"先建 Panel 再挂 Figure"的中间态产生不一致。
@@ -1481,7 +1487,7 @@ crop_history:
 | 方案 | 表达 | 一致性维护成本 | 风险 |
 | --- | --- | --- | --- |
 | A | `Figure.result_refs[]` 单向；`Result.figures[]` 为派生缓存 | 低（单写入点） | 反向查询需索引 |
-| B | `ResultFigure/res_x--fig_y.md` 边文件 | 高（边数=图×结果） | 边无属性，纯文件爆炸 |
+| B | `ResultFigure/res_XXXXXXXX--fig_XXXXXXXX.md` 边文件 | 高（边数=图×结果） | 边无属性，纯文件爆炸 |
 | C | 双方皆权威 | 高 | 冲突不可判定 |
 
 **选型：A**，且**权威在 Figure 侧**（总控裁定，B4）：Figure 是**呈现方**，"我呈现了哪些 Result" 属于图的声明；Result 是客观发现，"我被画进了哪张图" 是稿件层的呈现决策，不该污染客观事实（与 `Claim.results` 归 Claim 的理由同构）。
@@ -1501,7 +1507,7 @@ crop_history:
 | 方案 | 表达 | 一致性维护成本 | 查询"哪些 Claim 用了 Result X" | 风险 |
 | --- | --- | --- | --- | --- |
 | A | `Claim.results[]`，Result 不存反向 | 低（单写入点） | 需索引（§8） | Result 无法提示"我支撑了哪些论断" |
-| B | `ClaimResult/clm_x--res_y.md` 携带 `relevance` | 中（每对一条边，边数 = 实际对数） | 直接 grep 边目录 | 文件爆炸：20 Claim × 5 Result = 100 个文件；**边属性改变需改 100 个文件** |
+| B | `ClaimResult/clm_XXXXXXXX--res_XXXXXXXX.md` 携带 `relevance` | 中（每对一条边，边数 = 实际对数） | 直接 grep 边目录 | 文件爆炸：20 Claim × 5 Result = 100 个文件；**边属性改变需改 100 个文件** |
 | C | 双写 | 高 | 双向 O(1) | 不一致无法自动发现（无事务） |
 
 **选型：A**。理由：边属性轻量，且 Result 无论如何都需要索引层（§8 的 inverted index 会自然产生 `res → claims` 反向表）。方案 B 的唯一优势（边成为一等公民）在属性少于 3 个时不成立。**当边需要承载审阅状态（"这条证据链被审稿人质疑"）时，晋升为 Claim 的 `evidence_links[]` 内嵌对象**（`{result, relevance, edge_status, edge_notes}`）—— 这是 A 的扩展，而非 B。`[取舍]` 为什么不直接跳到 B：内嵌对象保持了"一条边 = 一个列表项"的原子性，避免 100 个文件的 MetadataCache 压力。
@@ -1538,7 +1544,7 @@ crop_history:
 ### 4.5 跨项目复用（Project ↔ Method/Figure/Result/Reference）
 
 - 基数：Project N : M Method/Result/Figure；Reference 实际是全局的。
-- 方案 A 的 `project` 字段是**列表**时，可按"主项目 + 从属项目"解释：`project: [[prj_A]]` 单值 = 归属 A；`project: [[prj_A]]` + `shared_with: [prj_B, prj_C]` = A 拥有，B/C 可读引用。
+- 方案 A 的 `project` 字段是**列表**时，可按"主项目 + 从属项目"解释：`project: [[prj_AAAAAAAA]]` 单值 = 归属 A；`project: [[prj_AAAAAAAA]]` + `shared_with: [prj_BBBBBBBB, prj_CCCCCCCC]` = A 拥有，B/C 可读引用。
 - **否决**把 `project` 改为自由列表：会让"谁是所有者、谁有权冻结"变得不确定。
 
 **选型**：`project`（单值，所有者）+ `shared_with`（list，可选，§3.0.2 扩展字段，所有含 `project` 的实体都可使用）。Reference 例外：`project` 可空（全局库）。
@@ -1768,7 +1774,7 @@ decodeAnchor(s) -> {kind, sha8, ...} | AnchorError(kind, reason)
 validateAnchor(s, expectedSha) -> ok | mismatch | unresolvable
 ```
 
-- 若 Obsidian 块 ID 不允许下划线（`[待审计]`），编解码器内部把 `sec_`/`par_`/`eqn_` 映射为 `sec-`/`par-`/`eqn-`，对上层透明。**两种拼写都是合法块锚点**（§6.0.3 的 `BLOCK_ANCHOR_RE` 只匹配 ID 本体；§6.0.5 的 `ANCHOR_RE` 两种拼写都剥离），因此改写拼写不改变 `text_hash`（B6）。编解码器是**唯一**产出锚点字符串的地方，其余模块只消费 `encodeAnchor` / `decodeAnchor`，不得手拼 `"^" + kind + "_" + id`。
+- **下划线已经交叉确认 C1 判定为合法**（2026-11-06 回填：官方站点自身使用带 `_` 的块 ID），主线保留 `sec_`/`par_`/`eqn_` 拼写。编解码器内置的 `sec_`→`sec-`、`par_`→`par-`、`eqn_`→`eqn-` 映射降级为**保险丝分支**：仅当未来某 Obsidian 版本收紧字符集时启用，对上层透明，启用时跑一次全库重写。**两种拼写都是合法块锚点**（§6.0.3 的 `BLOCK_ANCHOR_RE` 只匹配 ID 本体；§6.0.5 的 `ANCHOR_RE` 两种拼写都剥离），因此改写拼写不改变 `text_hash`（B6）。编解码器是**唯一**产出锚点字符串的地方，其余模块只消费 `encodeAnchor` / `decodeAnchor`，不得手拼 `"^" + kind + "_" + id`。另按 C1：块 ID 大小写敏感性未能确认，编解码器判重一律按规范化大写键比对，不得依赖大小写差异。
 
 ---
 
@@ -1839,10 +1845,10 @@ ID           := 见 §6.0.2
 
 **规则**
 
-1. `#panel` 片段**只允许出现在 `figref` 与 `pnl`**（对 `figref` 表示渲染成 `Figure 3B`）；其它 kind 带 `#` 即为语法错误。
+1. `#panel` 片段在**语法层对所有 kind 一律接受**（`TOKEN_RE` 不按 kind 拆分支）；**语义层只允许 `figref` 与 `pnl` 解释它**（白名单 = `{figref, pnl}`，对 `figref` 表示渲染成 `Figure 3B`）。其它 kind 带 `#panel` 是**语法接受、语义拒绝**：渲染器入口丢弃该片段并报 VR-06（§6.4 渲染输入约定、§9.2），不得静默落为普通文本。**为什么不在正则层收紧**（G1-1 裁定，取"宽正则 + 语义拒绝"）：(a) 若按 kind 拆分支让非法组合语法不匹配，它会按规则 5 落为普通文本，作者得不到任何报错；宽正则让非法组合仍被识别为 token，VR-06 才能精确定位并提示"该 kind 不支持面板片段"（错误提示质量）；(b) 白名单作为**数据**维护（`_schema` 的 `token_panel_allowed_on`），调整白名单不必改改正则及其全部副本（实现成本）。
 2. `{{fig:…}}` 是**定义点**（决定编号，§6.3），`{{figref:…}}` 是**引用点**；同理 `{{tab:}}` / `{{tabref:}}`、`{{eq:}}` / `{{eqref:}}`。
-3. **多目标引用不扩展 TOKEN**：`Figures 3 and 4` 写成并列 token `{{figref:fig_a}}–{{figref:fig_b}}`；`expandRange` 只在 §6.7 的**导入归一化**阶段把旧字面量展开成这种并列形式。
-4. **`{{pnl:…}}` 保留（不删除）**：它有自己的 ID（`pnl_`），可以被 `RevisionIssue.targets`、`derived_from`、索引直接引用；`{{figref:fig_7K3M9Q2P#B}}` 只是**渲染便捷写法**，不产生 Panel ID。若删除 `{{pnl:}}`，正文将无法指涉一个已有 `pnl_` 实体（只能写 `[[pnl_…]]`，丢失"渲染为 Figure 3B"的语义）。两者的选择规则：**知道面板 ID 时用 `{{pnl:pnl_…}}`；只知道图号+面板字母（例如从旧稿归一化而来）时用 `{{figref:fig_…#B}}`**。渲染结果相同，VR-03 去重时按解析出的 (fig, panel) 对比较。
+3. **多目标引用不扩展 TOKEN**：`Figures 3 and 4` 写成并列 token `{{figref:fig_7K3M9Q2P}}–{{figref:fig_9WD4PKMR}}`；`expandRange` 只在 §6.7 的**导入归一化**阶段把旧字面量展开成这种并列形式。
+4. **`{{pnl:…}}` 保留（不删除）**：它有自己的 ID（`pnl_`），可以被 `RevisionIssue.targets`、`derived_from`、索引直接引用；`{{figref:fig_7K3M9Q2P#B}}` 只是**渲染便捷写法**，不产生 Panel ID。若删除 `{{pnl:}}`，正文将无法指涉一个已有 `pnl_` 实体（只能写 `[[pnl_…]]`，丢失"渲染为 Figure 3B"的语义）。两者的选择规则：**知道面板 ID 时用 `{{pnl:pnl_…}}`；只知道图号+面板字母（例如从旧稿归一化而来）时用 `{{figref:fig_…#B}}`**。渲染结果相同，VR-03 去重时按解析出的 (fig, panel) 对比较。**`{{pnl:pnl_…#A}}` 的仲裁（G1-2 关闭 N1）**：Panel ID 是身份的唯一权威，面板字母的权威来源是 `Panel.panel_label`；token 上的 `#A` 只是**渲染期断言**（assert，不是 override）——解析时若 `#A` ≠ 该 Panel 当前的 `panel_label`，报 VR-06（错误），渲染输出仍以 `Panel.panel_label` 为准；一致或省略 `#A` 时正常渲染。该写法只用于归一化过渡期的自检，不产生第二个标签权威。
 5. token 两侧不要求空格；token **不得嵌套**；未能匹配 TOKEN 的 `{{…}}` 视为普通文本（VR-06 仅在"形如 token 但 ID 非法"时才报错，见 §9.2）。
 
 #### 6.0.5 哈希剥离锚点文法（§5.3 的 `ANCHOR_RE`）
@@ -1907,10 +1913,11 @@ FENCE_OPEN_RE = re.compile(r"^ {0,3}```yaml[ ]+swp:(?P<block>[a-z][a-z0-9-]*)[ ]
 ```
 
 > **kind 与前缀的解耦**：token 种类 `eq`/`eqref` 对应前缀 `eqn`；其余 1:1。上一行是 §6.0.2 表中"token 种类"列的机器可读来源，校验器不得假设 `kind == prefix`。
+> **`(?:\#panel)?` 对所有 kind 开放是有意为之**（G1-1 裁定）：语法接受、语义拒绝，白名单在语义层执行（§6.0.4 规则 1、§6.4），不在本正则收紧。
 
 #### 6.0.9 测试向量
 
-见 `tests/grammar_vectors.md`（由 `tests/run_vectors.py` 生成），覆盖：合法/非法 ID、合法/非法 token（含 `#B`、`#BC`、多目标）、两种锚点写法、`text_hash` 不变量、内联引文、`swp:` 块识别。`python -I tests/run_vectors.py` 全绿方可合入本节改动。
+见 `tests/grammar_vectors.md`（由 `tests/run_vectors.py` 生成），覆盖：合法/非法 ID、合法/非法 token（含 `#B`、`#BC`、多目标）、两种锚点写法、`text_hash` 不变量、内联引文、`swp:` 块识别；Phase 1 门禁另加：散文规则↔正则互锁（B3-07/08）、示例 ID 合法性（B3-09）、关系图单一权威边（B4-03）、示例件 VR-15 与 `swp:sections` 对账（B5-05/06）、交叉确认 C1/C2/C5 回填（C1-01/C2-01/C5-01）。`python -I tests/run_vectors.py` 全绿方可合入本节改动。
 
 ### 6.1 问题定义
 
@@ -2019,7 +2026,8 @@ function renderText(text, numbering, locale):
         switch kind:
           case "fig":    return embedFigure(id) + "\n" + caption("figure",            n, id)
           case "figref": return labelFor("figure", n + (panel or ""), locale)  # "Figure 3" / "Figure 3B"
-          case "pnl":    return labelFor("panel",  n + (panel or ""), locale)  # "Figure 3B"
+          case "pnl":    assertPanelLabel(id, panel)                    # #A 仅作断言：≠ Panel.panel_label → VR-06（§6.0.4 规则 4）
+                         return labelFor("panel",  n, locale)           # "Figure 3B"；n 已含面板字母（§6.3 阶段 3），不再拼接 token 字母
           case "tab":    return embedTable(id) + "\n" + caption("table",            n, id)
           case "tabref": return labelFor("table",  n, locale)                  # "Table 1"
           case "eq":     return embedEquation(id) + alignTag("(" + n + ")")   # 定义点：行内公式 + 右对齐编号
@@ -2035,11 +2043,11 @@ function labelFor(kind, n, locale):
       "zh-CN": {figure:"图", panel:"图", table:"表", equation:"（{}）", section:"第{}节"},
       ...
     }
-    # 多目标：并列 token {{figref:fig_a}}–{{figref:fig_b}} 渲染为 "Figure 3"–"Figure 4"，
+    # 多目标：并列 token {{figref:fig_7K3M9Q2P}}–{{figref:fig_9WD4PKMR}} 渲染为 "Figure 3"–"Figure 4"，
     #        "and"/"和" 由排版层在相邻 token 之间合并生成（不在 token 内编码，§6.0.4 规则 3）
 ```
 
-**渲染输入约定（B3）**：`renderText` 只接受 §6.0.8 `TOKEN_RE` 的匹配结果；`#panel` 片段已由正则在语法层接受，**语义层**（渲染器入口）再校验——`kind ∈ {figref, pnl}` 且有 `panel` 时，解析 `(id, panel)` 得到唯一 Panel；`kind` 为其它值却带 `panel` 时丢弃 `panel` 并报 VR-06（不得整段吞掉，避免正文丢失）。
+**渲染输入约定（B3）**：`renderText` 只接受 §6.0.8 `TOKEN_RE` 的匹配结果；`#panel` 片段已由正则在语法层接受，**语义层**（渲染器入口）再校验——`kind = figref` 且有 `panel` 时，解析 `(id, panel)` 得到唯一 Panel；`kind = pnl` 且有 `panel` 时，该字母是**渲染期断言**：与 `Panel.panel_label` 不一致则报 VR-06，渲染仍用 `Panel.panel_label`（§6.0.4 规则 4，G1-2）；`kind` 为其它值却带 `panel` 时丢弃 `panel` 并报 VR-06（不得整段吞掉，避免正文丢失）。
 
 **编号只影响"渲染输出"，不写回源文件**。
 
@@ -2068,14 +2076,15 @@ function labelFor(kind, n, locale):
 | Obsidian 搜索结果 | 搜 "Figure 3" **搜不到**（只能搜到 token） | 可搜到 |
 | 外部工具（GitHub 预览、Pandoc） | 需在导出管线中解析 | 直接可用 |
 | 冲突/并发 | 无（无写入） | 每次重排都要重写全文，多人协作必冲突 |
-| 可实现性 | 需要插件做 reading view 渲染 + live preview 装饰 `[待审计]` | 只需一次性文本替换脚本 |
+| 可实现性 | 需要插件做 reading view 渲染 + live preview 装饰（C5 已确认 post-processor 可用，但**仅作用于 Reading view**；Live Preview 需另写 CM6 装饰器） | 只需一次性文本替换脚本 |
 
 **明确选型：混合策略 —— "源文件渲染时解析，交付件写入时固化"。**
 
 1. **源 Markdown（Vault 内）永远保存 token**，不保存字面图号。这是唯一能保证 P4 的做法。
-2. **阅读视图**：插件用 Markdown post-processor 把 token 换成 `Figure 3`；**Live Preview** 用 CodeMirror decoration 在 token 后显示灰色 `→ Figure 3` 提示（不改文本）。`[待审计]`：CodeMirror 6 装饰 API 与 reading view post-processor 的稳定性（Worker A §4、§6）。
+2. **阅读视图**：插件用 Markdown post-processor 把 token 换成 `Figure 3`；**Live Preview** 用 CodeMirror decoration 在 token 后显示灰色 `→ Figure 3` 提示（不改文本）。交叉确认 C5 的范围限定：post-processor **只作用于 Reading view**，Live Preview 必须追加 `registerEditorExtension` + CM6 装饰——**两条实现路径都要写**，不能只做 post-processor（API 稳定性仍待实测，Worker A §4、§6）。
 3. **导出（DOCX/PDF/HTML/投稿系统）**：在导出管线内解析一次并固化，产出物中不含 token。导出物本身是"快照"，与 P4 不冲突（快照本来就该冻结）。
 4. **若插件不可用**（审计结论为否 / 用户禁用插件）：降级为**写入时固化 + 显式重排命令**。此时正文存字面图号，`{{figref}}` 全部被替换为 `Figure N`，并由校验规则 VR-07 在重排后扫描"字面图号与解析值不一致"的位置，输出可一键修的可疑清单。这条降级路径必须实现，因为它是 `[待审计]` 项失败时的唯一退路。
+5. **与 Templates 语法同形（交叉确认 C5，2026-11-06 回填）**：`{{figref:…}}` 与 Templates 核心插件的 `{{date}}`/`{{date:format}}` 同形（`{{name:arg}}`）。Templates 仅在 `Insert template` 命令时替换，正文正常渲染不受影响；缓解与保留字清单见 §3.18 风险条目（token 必须含 `_` 且匹配 `ID_RE`，裸模板变量形由 VR-06 拦截；退路为 `{{swp:…}}` 私有前缀）。另注意 C5 的范围限定：post-processor **只作用于 Reading view**，"可安全处理"不等于两种视图都自动生效（见上文第 2 点）。
 
 ### 6.7 兼容旧写法的解析（导入期一次性归一化）
 
@@ -2486,7 +2495,7 @@ function claimsCitingReference(refId):
 | --- | --- | --- |
 | 文件级断链 | `[待审计]` `metadataCache.unresolvedLinks`（Obsidian 自维护）| 只能覆盖 wikilink；`{{fig:...}}` token 与 `par_` 字符串**不在其中** |
 | 文件级断链（token/ID 形式） | 自建索引 `index.exists(id)` | 覆盖全部 19 类 ID 引用（包括 `targets[].par`、`{{tabref:}}`/`{{eqref:}}`） |
-| 块级断链 | 对目标文件解析块 ID 集合，检查 `#^par_x` 是否存在 | `[待审计]` 是否可从 `CachedMetadata.blocks` 取块 ID 全集 |
+| 块级断链 | 对目标文件解析块 ID 集合，检查 `#^par_XXXXXXXX` 是否存在 | `[待审计]` 是否可从 `CachedMetadata.blocks` 取块 ID 全集 |
 | 语义断链 | 目标存在但类型/项目不匹配（如 Panel 指向别的项目的 Figure） | 由 VR-30 等规则覆盖 |
 
 **（2）孤儿（Orphan）**
@@ -2549,7 +2558,7 @@ function findCycles(graph, edgeTypes, maxDepth=64):
 | VR-03 | 重复显示编号 | `resolveNumbering()` 结果中两个实体得到同一 label（如两个 `Figure 3`） | 阻断 | 导出前 + 批量 |
 | VR-04 | Panel 坐标失效 | `calibration_state: stale` 或 `source_checksum_expected` 与磁盘 sha 不符且未重标定 | 阻断 | 导出前 |
 | VR-05 | 资产哈希不符 | `sha256(Assets/files/...)` ≠ `content_sha256` | 阻断 | 加载时 + 批量 |
-| VR-06 | 未解析 token | token 语法合法但目标实体不存在，或编号解析返回 `??`；`#panel` 只允许出现在 `figref`/`pnl`（§6.0.4 规则 1），其它 kind 带 `#` 报本规则 | 错误 | 保存时 |
+| VR-06 | 未解析 token | token 语法合法但目标实体不存在，或编号解析返回 `??`；`#panel` 语义上只允许出现在 `figref`/`pnl`（§6.0.4 规则 1：语法接受、语义拒绝），其它 kind 带 `#` 报本规则；`{{pnl:…#X}}` 的字母与 `Panel.panel_label` 不一致亦报本规则（§6.0.4 规则 4 的渲染期断言） | 错误 | 保存时 |
 | VR-07 | 遗留字面图号 | 正文（题注块除外）出现 `(Figure\|Fig\.?\|图)\s*\d+` 且未被 token 化 | 警告 | 保存时 + 导入后 |
 | VR-08 | schema 过旧 | `schema_version < min_supported` | 阻断（拒绝加载该文件，进 quarantine） | 加载时 |
 | VR-09 | 成环 | `supersedes` / `depends_on` / `revert_of` / `Figure↔Panel` 反向边成环 | 阻断 | 保存时 + 批量 |
@@ -2676,7 +2685,7 @@ contract:
 | --- | --- | --- | --- | --- |
 | **R1** | frontmatter 支持 `list<wikilink>`（Properties 中可编辑、MetadataCache 可解析为 `Link` 对象） | 全部关系的表达 | 关系退化为纯字符串 ID，所有链接失去 Obsidian 原生跳转/图视图 | 改用字符串 ID + 插件内跳转命令（功能等价，体验降级） |
 | **R2** | wikilink 按**文件名**解析（`[[fig_7K3M9Q2P]]` → `fig_7K3M9Q2P.md`） | 文件名=ID 的设计（§3.0.3） | 全部链接断裂 | 改用人可读文件名 + ID 字段 + 自定义解析；或保留 ID 文件名但放弃 Obsidian 原生链接（改用 `[text](path)`） |
-| **R3** | 块 ID（`^par_xxx`）允许的字符集、能否挂在标题上、能否被 `CachedMetadata.blocks` 索引 | Paragraph/Section 存在形式（§3.3、§3.4） | 段落无法被 `[[#^x]]` 引用 → Patch/Issue 定位失效 | 改用 HTML 注释 `<!-- par:x -->` + 自建索引；或段落晋升为文件（成本高） |
+| **R3** | 块 ID（`^par_XXXXXXXX`）允许的字符集、能否挂在标题上、能否被 `CachedMetadata.blocks` 索引 | Paragraph/Section 存在形式（§3.3、§3.4） | 段落无法被 `[[#^x]]` 引用 → Patch/Issue 定位失效 | 改用 HTML 注释 `<!-- par:x -->` + 自建索引；或段落晋升为文件（成本高） |
 | **R4** | ~~frontmatter 支持嵌套对象与 `list<object>`~~ **已裁决（B5）** | 弱实体方案（§3.11、§3.3） | 不适用：D-04 已 ACCEPTED，frontmatter **不再依赖**嵌套对象；剩余风险仅是"正文 YAML 代码块是否会被 Obsidian 改写/折叠" | 结构化字段一律走 §3.0.6 的 `swp:` 正文块或平行列表（VR-53/VR-54 校验）；若正文代码块被改写，退路为平行列表（字段少时）或弱实体晋升为文件（字段多时）。**R4 不再是阻断项**，仅保留"正文块保真"的实测请求（U1 改问 `swp:` 块） |
 | **R5** | 渲染时解析：reading view 的 Markdown post-processor + Live Preview 的 CodeMirror 6 装饰 | Figure 编号（§6.6） | 无法在编辑器中实时看到 `Figure 3`，用户看到 `{{figref:...}}` | 全面退化为"写入时固化 + 重排命令"（§6.6 降级路径），必须实现 |
 | **R6** | 自定义 ItemView / Bases 能展示"反向关系"（"这个 Reference 被哪些 Claim 引用"） | 审阅视图（§8.6） | 只能用 Dataview 或自建 View | 自建 View（成本中）；或用 `_index/` JSON + 外部脚本生成 Markdown 报表 |
@@ -2710,6 +2719,8 @@ contract:
 | U11 | 是否存在官方的"文件重命名自动更新链接"机制，以及它对 frontmatter 中链接是否生效 | 若启用 ID 文件名则次要；否则关键 | 官方文档 |
 | U12 | 移动端能否运行导入与校验（决定产品边界） | R12 | 官方说明 + 实测 |
 
+> **交叉确认回填（2026-11-06，`research/obsidian/CROSS_CONFIRMATION.md` C1–C6）**：U2 的下划线合法性 → **是**（C1，主线保留 `_`，映射降为保险丝）；标题行挂锚点 → **未能确认**（C2，权威反转退路已备，见 §3.3）；`CachedMetadata.blocks` 返回全集 → **是**（C3，"含标题锚点"为推断）；长度/数量限制 → 未发现任何表述（C3）。U4/U5 的 post-processor 能力 → **是**（C5），但**仅 Reading view**；与 Templates `{{date}}` 同形冲突 → **是**（C5，缓解见 §3.18/§6.6）。U1 的正文块保真 → **部分**（C4，风险低、无正面证据，退路已备）。剩余实测登记见该文件 §8。
+
 ### 11.2 需 Worker B（原稿转换）确认
 
 | # | 问题 | 影响的设计 | 需要的证据 |
@@ -2719,7 +2730,7 @@ contract:
 | U15 | 图片在 DOCX 中的 `docPr id` 与 `relationship` 是否稳定可用于锚点 | §5.2 `docPr:12` | 实测 |
 | U16 | 图号字面量的实际变体分布（`Figure`/`Fig.`/`图`/全角括号等），以及归一化误判率 | §6.7 归一化算法 | 在真实稿件上的统计 |
 | U17 | PDF 页面 `xywh` 坐标的单位与原点（pt vs px，左上 vs 左下） | §5.2 PDF 锚点 | 实测 + 规范 |
-| U18 | 导出 DOCX 时，块锚点（`^par_x`）与 token（`{{...}}`）必须被剥离，是否有可靠钩子 | §6.6 导出固化 | 导出管线证据 |
+| U18 | 导出 DOCX 时，块锚点（`^par_XXXXXXXX`）与 token（`{{...}}`）必须被剥离，是否有可靠钩子 | §6.6 导出固化 | 导出管线证据 |
 | U19 | 题注中的图号自指（"Figure 3. ..."）在导出时由谁生成 | §6.7 | 管线职责划分 |
 
 ### 11.3 需总控/产品决策
@@ -2739,7 +2750,7 @@ contract:
 | W1 | `_maps/` 是"文件即真"的唯一实质例外，且是段落身份绑定的权威 | 已声明，未给备份策略 | Phase 1 需明确：`_maps/` 随稿件一同进 Git，且 VR-49 在每次加载时执行 |
 | W2 | `Claim.expressed_in` 与正文内联存在唯一一处双写 | 已降级为可重建缓存 | 实现时必须以正文为权威并自动修复，不得双向合并 |
 | W3 | **19 个实体**对 Phase 0 可能过重（Reference/Citation 已是完整文献管理器的规模；Table/Equation 为 B3 新增） | 保留完整性 | 建议 Phase 1 实现优先级：Manuscript/Section/Paragraph/Figure/Panel/Table/Equation/Asset/Revision* 先行；Result/Method/Experiment/Claim 次之；Reference/Citation 最后（可先接 Zotero 导出的 BibTeX） |
-| W4 | 编号解析对"跨稿件引用"（稿件 A 引用稿件 B 的 Figure 3）未定义标签形式 | 未展开 | 建议语法 `{{figref:fig_x|scope=cross}}` → 渲染为 `Figure 3 (Manuscript B)`；Phase 1 前补 |
+| W4 | 编号解析对"跨稿件引用"（稿件 A 引用稿件 B 的 Figure 3）未定义标签形式 | 未展开 | 建议语法 `{{figref:fig_XXXXXXXX|scope=cross}}` → 渲染为 `Figure 3 (Manuscript B)`；Phase 1 前补 |
 | W5 | 归一化算法的误判率无实测数据 | 已声明风险 | 依赖 U16 |
 | W6 | 未定义"作者身份/Person"实体，`authors` 为自由文本 | `Project.authors` 用平行列表 `author_names` / `author_affiliation_keys` / `author_orcids` / `author_corresponding`（D-04，B5） | 若未来需按作者聚合，可新增 `Person` 实体并保持字段兼容（MINOR 升级） |
 | W7 | Table 仍为独立文件 + 定义点，`body_columns` 只存列定义、不存单元格数据（单元格留在正文或附件表） | 已声明（§3.17a 存在理由） | 若实测需要"表内容可校验"，Phase 1 再评估把单元格移入 `swp:` 块（会引入 `list<object>`，需 D-04 复核） |
@@ -2783,6 +2794,6 @@ contract:
 | B5 | 字段表大量使用 frontmatter 对象与 `list<object>`，与已 ACCEPTED 的 D-04 冲突（`x_ext` 为对象、`crop`/`layout`/`targets`/`section_meta` 等） | 建立 D-04 落位规则（frontmatter 仅标量/标量列表/wikilink 列表）与 `swp:` 块登记表；给出 **26 行逐字段落位映射**；`x_ext` 在 frontmatter 改标量、结构化扩展移 `swp:meta`；新增 VR-53（平行列表等长）/VR-54（frontmatter 禁嵌套对象）；交付 `schemas/d04-compliant.example.md` | §3.0.2；§3.0.6；§3.0.7；§3.1–§3.16 各字段表；§7.6；§9.2 VR-53/VR-54；附录 A |
 | B6 | `ANCHOR_RE = \s+\^[a-z]{3}-?…` 不接受下划线，主写法 `^par_…` 不被剥离 → `text_hash` 随锚点拼写漂移 | `ANCHOR_RE` 改为 `\s+\^(?:sec|par|eqn)[_-]{B32}{8}\s*$`（§6.0.5 唯一权威）；`eqn_` 纳入；§5.6 明确两种拼写都由编解码器透明处理；B6-01…B6-06 向量证明同段落有/无锚点、`_`/`-` 两拼写 `text_hash` 全等 | §5.3；§5.6；§6.0.5；§9.2 VR-17 |
 
-**一致性三件套**：字段表（§3）↔ 正则（§6.0.8 可执行定义）↔ 示例文件（`schemas/d04-compliant.example.md`、`schemas/entity-schemas.example.yaml`）由 `tests/run_vectors.py` 的 13 条跨文档断言（B1-01…B5-02）在每次改动后自动核对，全部 PASS 方可合入。
+**一致性三件套**：字段表（§3）↔ 正则（§6.0.8 可执行定义）↔ 示例文件（`schemas/d04-compliant.example.md`、`schemas/entity-schemas.example.yaml`）由 `tests/run_vectors.py` 的跨文档一致性断言（B1/B2/B3/B4/B5/B6 系列；Phase 1 门禁新增 B3-07…B5-06 与 C1/C2/C5 回填断言）在每次改动后自动核对，全部 PASS 方可合入。
 
 **仍开放的项**：B3 只保证"每个 token 都有实体承载"；Table 的单元格数据是否入模型（W7）、跨稿 Figure 引用标签（W4）保持原判断，留待 Phase 1。R4（嵌套 frontmatter）因 D-04 已裁决而**关闭**，U1 收窄为"正文 `swp:` 块保真"。

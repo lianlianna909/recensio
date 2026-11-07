@@ -76,3 +76,62 @@
 
 ### 修复日志
 - `research/manuscript/EVIDENCE_FIX_LOG.md` (本文件)
+
+---
+
+# 第二轮：Phase 1 门禁 G2（2026-11-07）
+
+> 依据: `reports/qa/PHASE_0_RECHECK.md` 放行条件 7（PARTIAL/RISK）与新问题 N3/N4。
+> 本轮只改 `research/manuscript/`；所有 URL 均本机 curl 实测，台账见 `evidence/E9_F9_evidence_urls.md`。
+
+## G2-1（N3）：三处出处不可达 / 张冠李戴 → 已关闭
+
+- **问题**: Microsoft Learn 404 ×2、e-iceblue 000 且非 docx4j 官方、python-docx GitHub 组织名错误。
+- **修改**:
+  - Learn 旧 `packageword.insertion/deletion` URL（复测仍 404）→ 替换为
+    `wordprocessing.insertedrun` / `wordprocessing.deletedrun`（view=openxml-3.0.1，实测 200）。
+  - e-iceblue URL（复测 DNS 失败 000）→ 替换为 Plutext 仓库（200）+
+    docx4j-openxml-objects 11.5.14 javadoc `RunIns`/`RunDel`（200，页面原文核验）。
+  - `github.com/python-docx/python-docx`（复测 404）→ `github.com/python-openxml/python-docx`（200）。
+  - Pandoc 旧锚点 `#input-MS-Word-documents`/`#reference-documents` 不存在 →
+    `#option--from` / `#option--reference-doc`（锚点实测存在）；`#latex` 复核为存在，保留。
+  - E6 改引 GFM Spec 表格扩展（200，锚点存在）；ECMA-376 页 200。
+- **附带发现**: 上一轮把 SDK 类名写成 `Insertion`/`Deletion` 也不准确，正确为
+  `InsertedRun`/`DeletedRun`（Learn 页面原文：qualified name = w:ins/w:del），报告与 E2 一并更正。
+- **证据**: `evidence/E2_F2_wDocumentChange_class.md`、`evidence/E9_F9_evidence_urls.md`（含失败 URL 处置记录）。
+
+## G2-2（N4）：E1 对 python-docx 能力描述过头且自相矛盾 → 已关闭
+
+- **问题**: E1 称「不能直接操作 OOXML 层」，与 `.element` 设计及 §3.2 矛盾。
+- **修改**: E1 重写为「公开 API 无修订接口，但可经 `.element`/oxml 读写 `w:ins`/`w:del`」；
+  报告 §3.1/§3.2 同步；新增最小代码片段与可复现探针。
+- **产物**: `evidence/probe_pythondocx_trackchanges.py` + `probe_pythondocx_trackchanges_output.txt`
+  （Python 3.14.4 / python-docx 1.2.0 / lxml 6.1.0，EXIT=0；读、写、持久化均验证）。
+- **附带发现（纠正任务前提）**: python-docx **1.2.0 起有批注公开 API**（`add_comment`/`comments`，
+  探针 [4] 与 master 源码 blob 页双重验证）。任务书中「无批注 API」仅对 <1.2.0 成立；
+  D-03 判据表按实测事实书写并显式标注该纠正。
+
+## G2-3：D-03 判据结论 → 已交付
+
+- 报告新增 **§3.3「D-03 判据表：python-docx 路线做 Track Changes 的代价」**
+  （能力 / 代价 / 是否可接受，6 行，全部挂探针或已核验 URL）。
+- 结论 14 置信度 **高 → 中**（显式下调）：docx4j 仅核验类型化对象存在，接受/拒绝端到端未实测。
+
+## G2-4：无产物的「实测」数字 → 已关闭
+
+- §8.2 改写为「工具实测：未执行（无样本、无脚本、无产物）」，定性表标注为经验估计；
+  百分比数字维持删除状态（第一轮已删，本轮全文复查无残留）。
+- E8/E10 无 URL、无产物，列入 §12-9/11；docx4j 端到端列入 §12-10。
+
+## 本轮文件清单
+
+- 修订: `MANUSCRIPT_TECHNICAL_AUDIT.md`（v0.3）
+- 重写: `evidence/E1_F1_F2_python-docx_TrackChanges.md`、`evidence/E2_F2_wDocumentChange_class.md`、`evidence/E9_F9_evidence_urls.md`
+- 补充: `evidence/E3_F3_mammoth_issues.md`、`evidence/E4_F4_tool_test_data.md`、`evidence/E6_F6_tblMergeCell.md`
+- 新增: `evidence/probe_pythondocx_trackchanges.py`、`evidence/probe_pythondocx_trackchanges_output.txt`
+- 追加: `EVIDENCE_FIX_LOG.md`（本节）
+
+## 一句话结论（D-03 输入）
+
+python-docx 做 Track Changes 的代价 = 在 lxml/oxml 层手工实现 `w:ins`/`w:del` 的解析、生成与
+接受/拒绝语义，无类型安全、需自维护 ECMA-376 schema 校验；批注自 1.2.0 已有公开 API，不构成代价。

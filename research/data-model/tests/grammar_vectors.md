@@ -1,7 +1,7 @@
-# Grammar & Hashing Test Vectors (B3 / B6 + B1/B2/B4/B5 consistency)
+# Grammar & Hashing Test Vectors (B3 / B6 + B1/B2/B4/B5 consistency + Phase-1 gate locks)
 
 > 生成者：`research/data-model/tests/run_vectors.py --emit`（正则与结果均由脚本产出，勿手改）
-> 被测文档：`../SCIENTIFIC_DATA_MODEL_PROPOSAL.md` §6.0（文法唯一定义）、§5.3（哈希契约）、§3.0.6（D-04 落位）、§2.2（实体清单）
+> 被测文档：`../SCIENTIFIC_DATA_MODEL_PROPOSAL.md` §6.0（文法唯一定义）、§5.3（哈希契约）、§3.0.6（D-04 落位）、§2.2（实体清单）；门禁锁另测 §2.1/§3.3/§3.18/§5.6/§6.6 与示例件
 > 执行：`python -I research/data-model/tests/run_vectors.py`；全部 PASS 时退出码 0
 
 ## 0. 被测正则（= §6.0 的可执行副本，与提案 §6.0 逐字一致）
@@ -59,6 +59,9 @@ FENCE_OPEN_RE = re.compile(r"^ {0,3}```yaml[ ]+swp:(?P<block>[a-z][a-z0-9-]*)[ ]
 | G3-15b | TOKEN + semantic(no #panel) | `{{sec:sec_4M2P8QKT#B}}` | matched, semantic reject | panel=B | PASS | 语法接受、语义拒绝（语法层不拦，渲染器入口按 §6.0.4 规则 1 丢弃 panel 并报 VR-06） |
 | G3-15b | TOKEN + semantic(no #panel) | `{{res:res_5RTV2WQK#B}}` | matched, semantic reject | panel=B | PASS | 语法接受、语义拒绝（语法层不拦，渲染器入口按 §6.0.4 规则 1 丢弃 panel 并报 VR-06） |
 | G3-15b | TOKEN + semantic(no #panel) | `{{pat:pat_8KHJ3MNQ#B}}` | matched, semantic reject | panel=B | PASS | 语法接受、语义拒绝（语法层不拦，渲染器入口按 §6.0.4 规则 1 丢弃 panel 并报 VR-06） |
+| G3-18 | pnl_label_assertion | `token#A vs panel_label=A` | ok | ok | PASS | 断言与 Panel.panel_label 一致 → 正常渲染 |
+| G3-19 | pnl_label_assertion | `token#B vs panel_label=A` | VR-06 | VR-06 | PASS | 断言不一致 → VR-06；渲染仍以 Panel.panel_label 为准 |
+| G3-20 | pnl_label_assertion | `token#None vs panel_label=A` | ok | ok | PASS | 省略 #panel → 无断言，直接按 Panel.panel_label 渲染 |
 | G3-01 | TOKEN_RE.finditer | `{{fig:fig_7K3M9Q2P}}` | {'kind': 'fig', 'id': 'fig_7K3M9Q2P', 'panel': None, 'opts': None} | {'kind': 'fig', 'id': 'fig_7K3M9Q2P', 'panel': None, 'opts': None} | PASS |  |
 | G3-02 | TOKEN_RE.finditer | `{{tab:tab_4XQ7NWKB}}` | {'kind': 'tab', 'id': 'tab_4XQ7NWKB', 'panel': None, 'opts': None} | {'kind': 'tab', 'id': 'tab_4XQ7NWKB', 'panel': None, 'opts': None} | PASS | Table 定义点 |
 | G3-03 | TOKEN_RE.finditer | `{{eq:eqn_2VH8RTMW}}` | {'kind': 'eq', 'id': 'eqn_2VH8RTMW', 'panel': None, 'opts': None} | {'kind': 'eq', 'id': 'eqn_2VH8RTMW', 'panel': None, 'opts': None} | PASS | Equation 定义点 |
@@ -69,12 +72,12 @@ FENCE_OPEN_RE = re.compile(r"^ {0,3}```yaml[ ]+swp:(?P<block>[a-z][a-z0-9-]*)[ ]
 | G3-08 | TOKEN_RE.finditer | `{{eqref:eqn_2VH8RTMW}}` | {'kind': 'eqref', 'id': 'eqn_2VH8RTMW', 'panel': None, 'opts': None} | {'kind': 'eqref', 'id': 'eqn_2VH8RTMW', 'panel': None, 'opts': None} | PASS | Equation 引用点 |
 | G3-09 | TOKEN_RE.finditer | `{{res:res_5RTV2WQK\|fmt=31.0}}` | {'kind': 'res', 'id': 'res_5RTV2WQK', 'panel': None, 'opts': 'fmt=31.0'} | {'kind': 'res', 'id': 'res_5RTV2WQK', 'panel': None, 'opts': 'fmt=31.0'} | PASS | 数值注入 |
 | G3-10 | TOKEN_RE.finditer | `{{pat:pat_8KHJ3MNQ}}` | {'kind': 'pat', 'id': 'pat_8KHJ3MNQ', 'panel': None, 'opts': None} | {'kind': 'pat', 'id': 'pat_8KHJ3MNQ', 'panel': None, 'opts': None} | PASS | 修订引用 |
-| G3-11 | TOKEN_RE.finditer | `{{figref:fig_a,fig_b}}` | no match | no match | PASS | 多目标须写并列 token：{{figref:fig_a}}–{{figref:fig_b}}（§6.7） |
+| G3-11 | TOKEN_RE.finditer | `{{figref:fig_7K3M9Q2P,fig_9WD4PKMR}}` | no match | no match | PASS | 多目标须写并列 token：{{figref:fig_7K3M9Q2P}}–{{figref:fig_9WD4PKMR}}（§6.7）；即便两个 ID 都合法，逗号合并也不匹配 |
 | G3-12 | TOKEN_RE.finditer | `{{figref:fig_7K3M9Q2P#BC}}` | no match | no match | PASS | 面板字母=1 位大写 + 可选 1 位数字 |
 | G3-13 | TOKEN_RE.finditer | `{{figref:fig_7K3M9Q2P#}}` | no match | no match | PASS | # 后必须跟合法面板字母 |
 | G3-14 | TOKEN_RE.finditer | `{{eqref:eq_2VH8RTMW}}` | no match | no match | PASS | Equation 前缀固定 eqn_ |
 | G3-15 | TOKEN_RE.finditer | `{{fig:fig_7K3M9Q2P#B}}` | {'kind': 'fig', 'id': 'fig_7K3M9Q2P', 'panel': 'B', 'opts': None} | {'kind': 'fig', 'id': 'fig_7K3M9Q2P', 'panel': 'B', 'opts': None} | PASS | 语法接受；语义上 fig 定义点不得带 #panel（G3-15b） |
-| G3-16 | TOKEN_RE.finditer | `{{pnl:pnl_4ZQ7NWKB#A}}` | {'kind': 'pnl', 'id': 'pnl_4ZQ7NWKB', 'panel': 'A', 'opts': None} | {'kind': 'pnl', 'id': 'pnl_4ZQ7NWKB', 'panel': 'A', 'opts': None} | PASS | pnl 允许 #panel（§6.0.4 规则 1） |
+| G3-16 | TOKEN_RE.finditer | `{{pnl:pnl_4ZQ7NWKB#A}}` | {'kind': 'pnl', 'id': 'pnl_4ZQ7NWKB', 'panel': 'A', 'opts': None} | {'kind': 'pnl', 'id': 'pnl_4ZQ7NWKB', 'panel': 'A', 'opts': None} | PASS | pnl 允许 #panel（§6.0.4 规则 1）；字母仅作渲染期断言（规则 4，见 G3-18…20） |
 | G3-17 | TOKEN_RE.finditer | `{{pnl:pnl_4ZQ7NWKB\|style=raw}}` | {'kind': 'pnl', 'id': 'pnl_4ZQ7NWKB', 'panel': None, 'opts': 'style=raw'} | {'kind': 'pnl', 'id': 'pnl_4ZQ7NWKB', 'panel': None, 'opts': 'style=raw'} | PASS | opts 透传 |
 | G4-01 | ANCHOR_RE.sub | `text ^par_9QK2M4XZ` | rest=text | rest=text | PASS | 下划线写法被剥离 |
 | G4-02 | ANCHOR_RE.sub | `text ^par-9QK2M4XZ` | rest=text | rest=text | PASS | 连字符写法被剥离 |
@@ -121,25 +124,40 @@ FENCE_OPEN_RE = re.compile(r"^ {0,3}```yaml[ ]+swp:(?P<block>[a-z][a-z0-9-]*)[ ]
 | B3-05 | cross-document | §6.0.8 可执行定义与本脚本 grammar_source() 逐字一致（无漂移） | present | present | PASS |  |
 | B3-06 | cross-document | schema 的 id_pattern 含 tab/eqn 且计数 19（§6.0.2 同步） | present | present | PASS |  |
 | B5-04 | cross-document | manuscript.example.md frontmatter 亦为零嵌套（D-04） | present | present | PASS |  |
+| B3-07 | cross-document | §6.0.4 规则 1：非白名单 kind 带 #panel = 语法接受、语义拒绝（散文与正则互锁，G1-1/N10a） | present | present | PASS |  |
+| B3-08 | cross-document | {{pnl:…#A}}：字母=渲染期断言，Panel.panel_label 为权威（G1-2/N1） | present | present | PASS |  |
+| B3-09 | cross-document | 全文示例 ID 合法（无 fig_a/fig_b/tab_x 等非法占位，G1-3/N10c） | present | present | PASS |  |
+| B4-03 | cross-document | §2.1 关系图无 evidenced_by 反向双权威边（G1-4/N2/N10d） | present | present | PASS |  |
+| B5-05 | cross-document | 示例件过 VR-15：块锚点零重复（G1-7/N6） | present | present | PASS |  |
+| B5-06 | cross-document | 示例 swp:sections 与正文标题锚点一一对应（G1-7/N6） | present | present | PASS |  |
+| C1-01 | cross-document | §3.3/§5.6 回填 C1：下划线合法、降级分支降为保险丝（G1-6/条件9） | present | present | PASS |  |
+| C2-01 | cross-document | §3.3 回填 C2：标题挂锚点未能确认 + 权威反转退路（G1-6/条件9） | present | present | PASS |  |
+| C5-01 | cross-document | §3.18/§6.6 增补 Templates 同形风险与缓解（G1-6/条件9） | present | present | PASS |  |
 
 ## 2. 可直接粘贴执行的等价断言
 
 ```python
-from run_vectors import ID_RE, TOKEN_RE, ANCHOR_RE, text_hash
+from run_vectors import ID_RE, TOKEN_RE, ANCHOR_RE, text_hash, panel_scope_ok, pnl_label_assertion
 
 assert ID_RE.fullmatch("tab_4XQ7NWKB")
 assert ID_RE.fullmatch("eqn_2VH8RTMW")
 assert not ID_RE.fullmatch("eq_2VH8RTMW")            # 审计 B3：两字母前缀
 m = TOKEN_RE.fullmatch("{{figref:fig_7K3M9Q2P#B}}")   # 审计 B3：# 片段
 assert m and m.group("panel") == "B"
-assert not TOKEN_RE.fullmatch("{{figref:fig_a,fig_b}}")
+assert not TOKEN_RE.fullmatch("{{figref:fig_7K3M9Q2P,fig_9WD4PKMR}}")
 assert ANCHOR_RE.sub("", "Paragraph text ^par_9QK2M4XZ") == "Paragraph text"
 assert ANCHOR_RE.sub("", "Paragraph text ^par-9QK2M4XZ") == "Paragraph text"
 assert text_hash("P text ^par_9QK2M4XZ") == text_hash("P text ^par-9QK2M4XZ") == text_hash("P text")
+assert TOKEN_RE.fullmatch("{{fig:fig_7K3M9Q2P#B}}")   # G1-1：语法接受…
+assert not panel_scope_ok("fig", "B")                # …语义拒绝（VR-06）
+assert panel_scope_ok("figref", "B") and panel_scope_ok("pnl", "A")
+assert pnl_label_assertion("A", "A")                 # G1-2：断言一致
+assert not pnl_label_assertion("B", "A")             # G1-2：不一致 → VR-06
 ```
 
 ## 3. 判定语义
 
 - `text_hash`：B6-01…B6-05 必须**全等**（同一段落，有/无锚点、`_`/`-` 两种写法、行尾空白、尾换行）；B6-06 必须**不同**（文本内容真的变了，哈希须反映）。
-- `#panel` 的归属是**语义规则**而非文法规则：`TOKEN_RE` 对所有 kind 都接受 `#A`…`#Z9`；`fig`/`tab`/`eq`/`sec`/`res`/`pat` 带上 `#panel` 时由渲染器入口丢弃该片段并报 VR-06（G3-15b），`figref`/`pnl` 才解释它。
-- `B1/B2/B3/B4/B5` 行是跨文件一致性断言（P2 表 ↔ 字段表 ↔ schema ↔ 示例文件），任何文档改动后必须重跑。
+- `#panel` 的归属是**语义规则**而非文法规则：`TOKEN_RE` 对所有 kind 都接受 `#A`…`#Z9`；`fig`/`tab`/`eq`/`sec`/`res`/`pat` 带上 `#panel` 时由渲染器入口丢弃该片段并报 VR-06（G3-15b），`figref`/`pnl` 才解释它。B3-07 把这一裁定同时锁在 §6.0.4 散文与本脚本行为上。
+- `{{pnl:…#A}}` 的字母是**渲染期断言**而非覆盖：与 `Panel.panel_label` 不一致报 VR-06，渲染仍以 `Panel.panel_label` 为准（G3-18…G3-20，§6.0.4 规则 4）。
+- `B1/B2/B3/B4/B5/C` 行是跨文件一致性断言（P2 表 ↔ 字段表 ↔ schema ↔ 示例文件 ↔ 交叉确认回填），任何文档改动后必须重跑。

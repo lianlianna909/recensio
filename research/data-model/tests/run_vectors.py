@@ -6,6 +6,11 @@ Covers:
   V-B6  §5.3 hashing  : text_hash is invariant to anchors and to anchor spelling
   V-B5  D-04 layout   : the D-04 example's frontmatter holds no object / list<object>
   V-B1/B2/B4          : authority-edge + targets declarations agree across documents
+  V-GATE (Phase 1 门禁): prose↔regex interlock for the #panel ruling (B3-07) and the
+         {{pnl:…#A}} arbitration (B3-08); every example ID legal (B3-09); §2.1 graph
+         has no reverse second-authority edge (B4-03); example notes pass VR-15 and
+         swp:sections↔headings agree (B5-05/06); CROSS_CONFIRMATION C1/C2/C5 backfilled
+         into §3.3/§5.6/§3.18/§6.6 (C1-01/C2-01/C5-01)
 
 Usage (standard library only, PyYAML not required):
     python -I research/data-model/tests/run_vectors.py            # run; exit 1 on failure
@@ -105,8 +110,21 @@ def frontmatters(markdown: str) -> list[str]:
 
 
 def panel_scope_ok(kind: str, panel) -> bool:
-    """§6.0.4 rule 1 (semantic, NOT grammar): only figref / pnl may carry #panel."""
+    """§6.0.4 rule 1 (semantic, NOT grammar): only figref / pnl may carry #panel.
+
+    G1-1 ruling (option b): TOKEN_RE deliberately accepts #panel on every kind;
+    non-whitelist kinds are rejected HERE (VR-06), never by the regex. Keeping the
+    regex wide means a bad combination still tokenizes, so the renderer can report
+    a located VR-06 instead of the token silently degrading to plain text (rule 5).
+    """
     return panel is None or kind in ("figref", "pnl")
+
+
+def pnl_label_assertion(token_panel, panel_label: str) -> bool:
+    """§6.0.4 rule 4 (G1-2 arbitration): on {{pnl:pnl_…#A}} the letter is a
+    render-time ASSERTION, not an override. Panel.panel_label is the authority;
+    a mismatch reports VR-06 and rendering still uses Panel.panel_label."""
+    return token_panel is None or token_panel == panel_label
 
 
 def frontmatter_violations(fm: str) -> list[str]:
@@ -136,6 +154,85 @@ def frontmatter_violations(fm: str) -> list[str]:
                         break
                 j += 1
     return bad
+
+
+# ---------------------------------------------------------------------------
+# Phase-1 gate helpers (G1-1 … G1-7): lock prose rules to executable behavior
+# ---------------------------------------------------------------------------
+def section_between(text: str, start: str, end: str) -> str:
+    i = text.index(start)
+    return text[i:text.index(end, i + len(start))]
+
+
+ID_CANDIDATE_RE = re.compile(r"\b(?:" + ID_PREFIX + r")_[0-9A-Za-z]{1,12}\b")
+BLOCK_ANCHOR_ANY_RE = re.compile(r"\^((?:sec|par|eqn)[_-]" + B32 + r"{8})")
+HEADING_SEC_RE = re.compile(r"^#{1,6}\s[^\n]*?\^(sec_" + B32 + r"{8})\s*$", re.M)
+
+
+def illegal_example_ids() -> list[str]:
+    """G1-3: every ID-shaped example in proposal / schemas / revision log must match
+    ID_RE. Angle-bracket metavariables (<msc_id>) are placeholders, not examples."""
+    bad = []
+    for f in (PROPOSAL, SCHEMA_YAML, MS_EXAMPLE, D04_EXAMPLE, DATA_MODEL / "REVISION_LOG.md"):
+        if not f.exists():
+            continue
+        text = f.read_text(encoding="utf-8")
+        for m in ID_CANDIDATE_RE.finditer(text):
+            if (m.start() > 0 and text[m.start() - 1] == "<"
+                    and m.end() < len(text) and text[m.end()] == ">"):
+                continue
+            if not ID_RE.fullmatch(m.group(0)):
+                bad.append(f.name + ": " + m.group(0))
+    return bad
+
+
+def example_note_bodies() -> list[tuple[str, str]]:
+    """(label, body) per example note. The D-04 file embeds each note in a
+    ```markdown fence that itself contains ```yaml inner fences, so notes are
+    delimited by the ```markdown markers (prose between notes carries no block
+    anchors). manuscript.example.md is scanned with frontmatter and HTML
+    comments stripped (its _maps appendix uses `par:` keys, not `^` anchors)."""
+    out = []
+    d04 = D04_EXAMPLE.read_text(encoding="utf-8")
+    for i, part in enumerate(d04.split("```markdown" + NL)[1:], 1):
+        out.append(("d04-compliant.example.md#note%d" % i, part))
+    ms = MS_EXAMPLE.read_text(encoding="utf-8")
+    ms = re.sub(r"\A---\n.*?\n---\n", "", ms, flags=re.S)
+    ms = re.sub(r"<!--.*?-->", "", ms, flags=re.S)
+    out.append(("manuscript.example.md", ms))
+    return out
+
+
+def anchor_duplicates() -> list[str]:
+    """VR-15 (duplicate half): no sec_/par_/eqn_ block anchor may repeat within a note."""
+    dup = []
+    for label, body in example_note_bodies():
+        seen, dups = set(), set()
+        for a in BLOCK_ANCHOR_ANY_RE.findall(body):
+            if a in seen:
+                dups.add(a)
+            seen.add(a)
+        dup += [label + ": " + d for d in sorted(dups)]
+    return dup
+
+
+def sections_consistency() -> list[str]:
+    """G1-7: swp:sections ids ↔ heading anchors must be equal sets, each side unique
+    (locks the N6 fix: one id per section, role/level no longer self-contradictory)."""
+    problems = []
+    for label, body in example_note_bodies():
+        m = re.search(r"```yaml swp:sections\n(.*?)```", body, re.S)
+        if not m:
+            continue
+        meta_ids = re.findall(r"\bid:\s*(sec_" + B32 + r"{8})", m.group(1))
+        head_ids = HEADING_SEC_RE.findall(body)
+        if len(meta_ids) != len(set(meta_ids)):
+            problems.append(label + ": swp:sections 重复 id")
+        if len(head_ids) != len(set(head_ids)):
+            problems.append(label + ": 标题锚点重复 id")
+        if set(meta_ids) != set(head_ids):
+            problems.append(label + ": swp:sections 与标题锚点集合不一致")
+    return problems
 
 
 # ---------------------------------------------------------------------------
@@ -172,13 +269,20 @@ TOKEN_CASES = [
     ("G3-08", "{{eqref:eqn_2VH8RTMW}}", {"kind": "eqref", "id": "eqn_2VH8RTMW", "panel": None, "opts": None}, "Equation 引用点"),
     ("G3-09", "{{res:res_5RTV2WQK|fmt=31.0}}", {"kind": "res", "id": "res_5RTV2WQK", "panel": None, "opts": "fmt=31.0"}, "数值注入"),
     ("G3-10", "{{pat:pat_8KHJ3MNQ}}", {"kind": "pat", "id": "pat_8KHJ3MNQ", "panel": None, "opts": None}, "修订引用"),
-    ("G3-11", "{{figref:fig_a,fig_b}}", None, "多目标须写并列 token：{{figref:fig_a}}–{{figref:fig_b}}（§6.7）"),
+    ("G3-11", "{{figref:fig_7K3M9Q2P,fig_9WD4PKMR}}", None, "多目标须写并列 token：{{figref:fig_7K3M9Q2P}}–{{figref:fig_9WD4PKMR}}（§6.7）；即便两个 ID 都合法，逗号合并也不匹配"),
     ("G3-12", "{{figref:fig_7K3M9Q2P#BC}}", None, "面板字母=1 位大写 + 可选 1 位数字"),
     ("G3-13", "{{figref:fig_7K3M9Q2P#}}", None, "# 后必须跟合法面板字母"),
     ("G3-14", "{{eqref:eq_2VH8RTMW}}", None, "Equation 前缀固定 eqn_"),
     ("G3-15", "{{fig:fig_7K3M9Q2P#B}}", {"kind": "fig", "id": "fig_7K3M9Q2P", "panel": "B", "opts": None}, "语法接受；语义上 fig 定义点不得带 #panel（G3-15b）"),
-    ("G3-16", "{{pnl:pnl_4ZQ7NWKB#A}}", {"kind": "pnl", "id": "pnl_4ZQ7NWKB", "panel": "A", "opts": None}, "pnl 允许 #panel（§6.0.4 规则 1）"),
+    ("G3-16", "{{pnl:pnl_4ZQ7NWKB#A}}", {"kind": "pnl", "id": "pnl_4ZQ7NWKB", "panel": "A", "opts": None}, "pnl 允许 #panel（§6.0.4 规则 1）；字母仅作渲染期断言（规则 4，见 G3-18…20）"),
     ("G3-17", "{{pnl:pnl_4ZQ7NWKB|style=raw}}", {"kind": "pnl", "id": "pnl_4ZQ7NWKB", "panel": None, "opts": "style=raw"}, "opts 透传"),
+]
+
+# G1-2 仲裁的可执行向量：token 字母 vs Panel.panel_label（权威）
+PNL_ASSERT_CASES = [
+    ("G3-18", "A", "A", True, "断言与 Panel.panel_label 一致 → 正常渲染"),
+    ("G3-19", "B", "A", False, "断言不一致 → VR-06；渲染仍以 Panel.panel_label 为准"),
+    ("G3-20", None, "A", True, "省略 #panel → 无断言，直接按 Panel.panel_label 渲染"),
 ]
 
 ANCHOR_CASES = [
@@ -247,6 +351,12 @@ def run() -> tuple[int, list[list[str]]]:
             ("panel=" + str(ms[0]["panel"])) if ms else "no match", ok,
             "语法接受、语义拒绝（语法层不拦，渲染器入口按 §6.0.4 规则 1 丢弃 panel 并报 VR-06）")
 
+    # G1-2 arbitration (§6.0.4 rule 4): token letter is an assertion against Panel.panel_label
+    for cid, tok_panel, label, want, note in PNL_ASSERT_CASES:
+        got = pnl_label_assertion(tok_panel, label)
+        rec(cid, "pnl_label_assertion", "token#%s vs panel_label=%s" % (tok_panel, label),
+            "ok" if want else "VR-06", "ok" if got else "VR-06", got == want, note)
+
     for cid, s, want, note in TOKEN_CASES:
         ms = tokenize(s)
         if want is None:
@@ -306,6 +416,16 @@ def run() -> tuple[int, list[list[str]]]:
 
     # ---- Cross-document consistency (P2 table / field tables / schema)
     prop = PROPOSAL.read_text(encoding="utf-8")
+    sec604 = section_between(prop, "#### 6.0.4", "#### 6.0.5")
+    sec33 = section_between(prop, "### 3.3 Section", "### 3.4 Paragraph")
+    sec56 = section_between(prop, "### 5.6", "## 6. Figure")
+    sec318 = section_between(prop, "### 3.18", "## 4. 关系建模")
+    sec66 = section_between(prop, "### 6.6", "### 6.7")
+    sec21 = section_between(prop, "### 2.1", "### 2.2")
+    mermaid = section_between(sec21, "```mermaid", NL + "```")
+    bad_ids = illegal_example_ids()
+    dup_anchors = anchor_duplicates()
+    sec_problems = sections_consistency()
     checks = [
         ("B1-01", "P2 表：Panel.figure 为唯一权威边",
          "| Figure ↔ Panel | `Panel.figure` |" in prop),
@@ -346,11 +466,38 @@ def run() -> tuple[int, list[list[str]]]:
          bool(frontmatters(MS_EXAMPLE.read_text(encoding="utf-8")))
          and not any(frontmatter_violations(fm)
                      for fm in frontmatters(MS_EXAMPLE.read_text(encoding="utf-8")))),
+        # ---- Phase-1 gate locks (tasks/gate-model.md G1-1 … G1-7) ----
+        ("B3-07", "§6.0.4 规则 1：非白名单 kind 带 #panel = 语法接受、语义拒绝（散文与正则互锁，G1-1/N10a）",
+         ("语法接受、语义拒绝" in sec604 and "语法错误" not in sec604
+          and all(panel_scope_ok(k, "B") for k in ("figref", "pnl"))
+          and all(not panel_scope_ok(k, "B") for k in TOKEN_KINDS.split("|") if k not in ("figref", "pnl"))
+          and "token_panel_allowed_on: [figref, pnl]" in SCHEMA_YAML.read_text(encoding="utf-8"))),
+        ("B3-08", "{{pnl:…#A}}：字母=渲染期断言，Panel.panel_label 为权威（G1-2/N1）",
+         ("渲染期断言" in sec604 and "显式字母断言" in sec318 and "显式字母覆盖" not in prop)),
+        ("B3-09", "全文示例 ID 合法（无 fig_a/fig_b/tab_x 等非法占位，G1-3/N10c）",
+         not bad_ids, "; ".join(bad_ids)),
+        ("B4-03", "§2.1 关系图无 evidenced_by 反向双权威边（G1-4/N2/N10d）",
+         ("evidenced_by" not in mermaid and "RES -->" not in mermaid
+          and "FIG -->|result_refs| RES" in mermaid)),
+        ("B5-05", "示例件过 VR-15：块锚点零重复（G1-7/N6）",
+         not dup_anchors, "; ".join(dup_anchors)),
+        ("B5-06", "示例 swp:sections 与正文标题锚点一一对应（G1-7/N6）",
+         not sec_problems, "; ".join(sec_problems)),
+        ("C1-01", "§3.3/§5.6 回填 C1：下划线合法、降级分支降为保险丝（G1-6/条件9）",
+         ("C1" in sec33 and "可以保留" in sec33 and "唯一一处" not in sec33
+          and "保险丝" in sec56 and "若 Obsidian 块 ID 不允许下划线（`[待审计]`）" not in prop)),
+        ("C2-01", "§3.3 回填 C2：标题挂锚点未能确认 + 权威反转退路（G1-6/条件9）",
+         ("C2" in sec33 and "未能确认" in sec33 and "反转" in sec33)),
+        ("C5-01", "§3.18/§6.6 增补 Templates 同形风险与缓解（G1-6/条件9）",
+         ("Templates" in sec318 and "{{date}}" in sec318 and "同形" in sec318
+          and "Templates" in sec66 and "Reading view" in sec66)),
     ]
-    for cid, label, ok in checks:
+    for row in checks:
+        cid, label, ok = row[0], row[1], row[2]
+        note = row[3] if len(row) > 3 else ""
         failures += (not ok)
         rows.append([cid, "cross-document", label, "present",
-                     "present" if ok else "missing", "PASS" if ok else "**FAIL**", ""])
+                     "present" if ok else "missing", "PASS" if ok else "**FAIL**", note])
     return failures, rows
 
 
@@ -394,10 +541,10 @@ def grammar_source() -> str:
 
 
 HEAD = [
-    "# Grammar & Hashing Test Vectors (B3 / B6 + B1/B2/B4/B5 consistency)",
+    "# Grammar & Hashing Test Vectors (B3 / B6 + B1/B2/B4/B5 consistency + Phase-1 gate locks)",
     "",
     "> 生成者：`research/data-model/tests/run_vectors.py --emit`（正则与结果均由脚本产出，勿手改）",
-    "> 被测文档：`../SCIENTIFIC_DATA_MODEL_PROPOSAL.md` §6.0（文法唯一定义）、§5.3（哈希契约）、§3.0.6（D-04 落位）、§2.2（实体清单）",
+    "> 被测文档：`../SCIENTIFIC_DATA_MODEL_PROPOSAL.md` §6.0（文法唯一定义）、§5.3（哈希契约）、§3.0.6（D-04 落位）、§2.2（实体清单）；门禁锁另测 §2.1/§3.3/§3.18/§5.6/§6.6 与示例件",
     "> 执行：`python -I research/data-model/tests/run_vectors.py`；全部 PASS 时退出码 0",
     "",
     "## 0. 被测正则（= §6.0 的可执行副本，与提案 §6.0 逐字一致）",
@@ -419,24 +566,30 @@ TAIL = [
     "## 2. 可直接粘贴执行的等价断言",
     "",
     "```python",
-    "from run_vectors import ID_RE, TOKEN_RE, ANCHOR_RE, text_hash",
+    "from run_vectors import ID_RE, TOKEN_RE, ANCHOR_RE, text_hash, panel_scope_ok, pnl_label_assertion",
     "",
     'assert ID_RE.fullmatch("tab_4XQ7NWKB")',
     'assert ID_RE.fullmatch("eqn_2VH8RTMW")',
     'assert not ID_RE.fullmatch("eq_2VH8RTMW")            # 审计 B3：两字母前缀',
     'm = TOKEN_RE.fullmatch("{{figref:fig_7K3M9Q2P#B}}")   # 审计 B3：# 片段',
     'assert m and m.group("panel") == "B"',
-    'assert not TOKEN_RE.fullmatch("{{figref:fig_a,fig_b}}")',
+    'assert not TOKEN_RE.fullmatch("{{figref:fig_7K3M9Q2P,fig_9WD4PKMR}}")',
     'assert ANCHOR_RE.sub("", "Paragraph text ^par_9QK2M4XZ") == "Paragraph text"',
     'assert ANCHOR_RE.sub("", "Paragraph text ^par-9QK2M4XZ") == "Paragraph text"',
     'assert text_hash("P text ^par_9QK2M4XZ") == text_hash("P text ^par-9QK2M4XZ") == text_hash("P text")',
+    'assert TOKEN_RE.fullmatch("{{fig:fig_7K3M9Q2P#B}}")   # G1-1：语法接受…',
+    'assert not panel_scope_ok("fig", "B")                # …语义拒绝（VR-06）',
+    'assert panel_scope_ok("figref", "B") and panel_scope_ok("pnl", "A")',
+    'assert pnl_label_assertion("A", "A")                 # G1-2：断言一致',
+    'assert not pnl_label_assertion("B", "A")             # G1-2：不一致 → VR-06',
     "```",
     "",
     "## 3. 判定语义",
     "",
     "- `text_hash`：B6-01…B6-05 必须**全等**（同一段落，有/无锚点、`_`/`-` 两种写法、行尾空白、尾换行）；B6-06 必须**不同**（文本内容真的变了，哈希须反映）。",
-    "- `#panel` 的归属是**语义规则**而非文法规则：`TOKEN_RE` 对所有 kind 都接受 `#A`…`#Z9`；`fig`/`tab`/`eq`/`sec`/`res`/`pat` 带上 `#panel` 时由渲染器入口丢弃该片段并报 VR-06（G3-15b），`figref`/`pnl` 才解释它。",
-    "- `B1/B2/B3/B4/B5` 行是跨文件一致性断言（P2 表 ↔ 字段表 ↔ schema ↔ 示例文件），任何文档改动后必须重跑。",
+    "- `#panel` 的归属是**语义规则**而非文法规则：`TOKEN_RE` 对所有 kind 都接受 `#A`…`#Z9`；`fig`/`tab`/`eq`/`sec`/`res`/`pat` 带上 `#panel` 时由渲染器入口丢弃该片段并报 VR-06（G3-15b），`figref`/`pnl` 才解释它。B3-07 把这一裁定同时锁在 §6.0.4 散文与本脚本行为上。",
+    "- `{{pnl:…#A}}` 的字母是**渲染期断言**而非覆盖：与 `Panel.panel_label` 不一致报 VR-06，渲染仍以 `Panel.panel_label` 为准（G3-18…G3-20，§6.0.4 规则 4）。",
+    "- `B1/B2/B3/B4/B5/C` 行是跨文件一致性断言（P2 表 ↔ 字段表 ↔ schema ↔ 示例文件 ↔ 交叉确认回填），任何文档改动后必须重跑。",
 ]
 
 
@@ -447,6 +600,9 @@ def emit_md(rows: list[list[str]]) -> str:
 
 
 def main() -> int:
+    # 控制台可能是 GBK 等窄编码（Windows 中文环境）；不可编码字符替换而非崩溃，
+    # 保证 `python -I tests/run_vectors.py` 的退出码只反映测试判定。
+    sys.stdout.reconfigure(errors="replace")
     failures, rows = run()
     if "--emit" in sys.argv:
         VECTORS_MD.write_text(emit_md(rows), encoding="utf-8")

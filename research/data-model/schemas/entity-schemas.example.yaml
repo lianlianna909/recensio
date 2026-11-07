@@ -25,7 +25,7 @@ token_kinds: [fig, figref, tab, tabref, eq, eqref, sec, pnl, res, pat]
 kind_to_prefix: {fig: fig, figref: fig, tab: tab, tabref: tab, eq: eqn, eqref: eqn,
                  sec: sec, pnl: pnl, res: res, pat: pat}
 token_re: '\{\{(?P<kind>fig|figref|tab|tabref|eq|eqref|sec|pnl|res|pat):(?P<id>(?:prj|msc|sec|par|fig|pnl|res|mth|exp|ref|cit|clm|ast|rnd|iss|pat|rsp|tab|eqn)_[0-9A-HJKMNP-TV-Z]{8})(?:\#(?P<panel>[A-Z][0-9]?))?(?:\|(?P<opts>[^}|\s][^}|]*))?\}\}'
-token_panel_allowed_on: [figref, pnl]     # §6.0.4 规则 1（语义层）
+token_panel_allowed_on: [figref, pnl]     # §6.0.4 规则 1：语法接受、语义拒绝（白名单是数据，不在正则层收紧；G1-1）
 block_anchor_prefixes: [sec, par, eqn]    # §6.0.2 锚点 ID 子集
 hash_strip_anchor_re: '\s+\^(?:sec|par|eqn)[_-][0-9A-HJKMNP-TV-Z]{8}\s*$'   # §6.0.5 / §5.3
 id_alphabet: "0123456789ABCDEFGHJKMNPQRSTVWXYZ"   # Crockford Base32

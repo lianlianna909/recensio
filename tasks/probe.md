@@ -1,0 +1,1 @@
+Agent readiness probe. Do not do anything. Reply with the single word: ready

@@ -1,0 +1,31 @@
+﻿# G2-2 probe output
+# command: python research/manuscript/evidence/probe_pythondocx_trackchanges.py
+# date: 2026-11-07 (Asia/Shanghai)
+# env: Windows, Python 3.14.4, python-docx 1.2.0, lxml 6.1.0
+
+python-docx version: 1.2.0
+lxml version: (6, 1, 0, 0)
+
+[1] 公开 API 视角（Document.paragraphs / Paragraph.text）
+paragraph texts: ['BASE TEXT']
+-> 修订标记内的文本不在公开 API 的段落/运行视图中（静默不可见）
+
+[2] `.element` 暴露 lxml 元素，可 xpath 读取 w:ins / w:del
+type(document.element): docx.oxml.document.CT_Document
+isinstance lxml.etree._Element: True
+w:ins id=1 author=probe date=2026-11-07T00:00:00Z text='INSERTED-VIA-W-INS' node_type=_Element
+w:del id=2 author=probe date=2026-11-07T00:00:00Z text='DELETED-VIA-W-DEL' node_type=_Element
+
+[3] 经 `.element` 写入新的 w:ins 并保存，重开验证持久化
+saved document.xml contains WRITTEN-VIA-ELEMENT: True
+saved document.xml contains w:ins author=probe-writer: True
+
+[4] 批注 API 存在性（1.2.0 起，纠正『无批注 API』的旧断言）
+hasattr(Document, 'add_comment'): True
+hasattr(Document, 'comments'): True
+
+[5] 公开修订 API 存在性
+hasattr(Document, 'track_changes'): False
+hasattr(Document, 'revisions'): False
+hasattr(Document, 'accept_changes'): False
+hasattr(Document, 'insertions'): False

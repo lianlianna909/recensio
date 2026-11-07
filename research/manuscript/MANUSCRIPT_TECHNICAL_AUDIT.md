@@ -1,10 +1,10 @@
 # Manuscript Technical Audit
 科研原稿 ↔ 结构化 Markdown 转换可行性审计
 
-> **版本**: `v0.2` (Evidence Fix)  
+> **版本**: `v0.3` (Phase 1 Gate G2)  
 > **作者**: Worker B — Manuscript Specialist  
-> **日期**: 2026-11-06  
-> **状态**: 技术审计完成，证据修复
+> **日期**: 2026-11-07  
+> **状态**: 技术审计完成；G2-1/G2-2/G2-3/G2-4 门禁修订（出处可达性 + python-docx 能力纠正 + D-03 判据表）
 
 ---
 
@@ -22,7 +22,7 @@
 8. 原稿段落锚定与重导入策略
 9. 技术风险评估
 
-**约束**: 只读研究，不安装依赖，不修改现有文件。
+**约束**: 本轮（v0.3）只修改 `research/manuscript/` 下文件；探针使用本机已安装的 python-docx 1.2.0 / lxml 6.1.0，未新装依赖。所有引用 URL 均于 2026-11-07 用 curl 实测并记录 HTTP 状态（见 §13 与 `evidence/E9_F9_evidence_urls.md`）。
 
 ---
 
@@ -43,7 +43,7 @@
 | 11 | 结构映射**单向可逆性普遍** | 高 | DOCX→MD 易，MD→DOCX 有损失 |
 | 12 | 段落锚定建议采用**内容哈希 + 顺序索引** | 高 | 纯哈希导致 ID 漂移，纯索引不稳定 |
 | 13 | 重导入需检测**漂移而非简单比较** | 中 | 需语义比较而非字符串匹配 |
-| 14 | 推荐导入器为**docx4j**（Java）或**python-docx** | 高 | 功能完整，**仅 docx4j 支持 Track Changes** |
+| 14 | 推荐导入器为**docx4j**（Java）或**python-docx**，Track Changes 代价见 §3.3 | **中**（自高下调） | docx4j 有类型化修订对象（`RunIns`/`RunDel`，javadoc 已核验）；python-docx **无公开修订 API**，但可经 `.element`/oxml 手工读写 `w:ins`/`w:del`（探针已验证）。docx4j 接受/拒绝修订的端到端语义未实测，故下调置信度 |
 | 15 | 推荐导出器为**Pandoc** + 模板机制 | 高 | 生态成熟，支持 DOCX 引用域 |
 
 ---
@@ -68,7 +68,7 @@ DOCX 是 ZIP 归档，包含以下核心 XML：
 | `word/header1.xml` / `footer1.xml` | 页眉页脚主 | 主文档页眉页脚 |
 | `word/media/image*.png` | 嵌入图片 | 二进制图片数据 |
 
-**关键发现**: Track Changes 信息分布在 `document.xml` 的 `w:ins`/`w:del` 标记和单独的修订 XML 中。**注意**: Open XML SDK 中**不存在** `wDocumentChange` 类，对应类型为 `Insertion` 和 `Deletion` 元素。
+**关键发现**: Track Changes 信息分布在 `document.xml` 的 `w:ins`/`w:del` 标记和单独的修订 XML 中。**注意**: Open XML SDK 中**不存在** `wDocumentChange` 类；对应类型为 `DocumentFormat.OpenXml.Wordprocessing.InsertedRun`（序列化 qualified name = `w:ins`）与 `DeletedRun`（`w:del`）。上一轮写的 `Insertion`/`Deletion` 类名亦不准确，本轮一并更正（见 `evidence/E2_F2_wDocumentChange_class.md`）。
 
 ### 2.2 Track Changes 语义解析
 
@@ -81,8 +81,12 @@ DOCX 是 ZIP 归档，包含以下核心 XML：
 | `w:commentRangeStart` | 批注范围开始 | 锚定到具体 `w:p` 或 `w:r` |
 | `w:commentRangeEnd` | 批注范围结束 | 与 `commentRangeStart` 配对 |
 
-**来源**: Microsoft Office Open XML SDK 文档，`Insertion`/`Deletion` 元素定义。
-**URL**: https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.packageword.insertion?view=openxml-2.8.1
+**来源**: Microsoft Open XML SDK API 文档（`InsertedRun`/`DeletedRun`，页面明确给出 qualified name `w:ins`/`w:del`）。
+**URL**（2026-11-07 curl 实测 HTTP 200）:
+- https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.wordprocessing.insertedrun?view=openxml-3.0.1
+- https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.wordprocessing.deletedrun?view=openxml-3.0.1
+
+旧 URL（`...packageword.insertion` / `...packageword.deletion`，view=openxml-2.8.1）实测 404，已删除。
 
 ### 2.3 批注锚定机制
 
@@ -111,27 +115,44 @@ DOCX 是 ZIP 归档，包含以下核心 XML：
 |------|------|----------|------|------|------|------|------|---------------|------|
 | **Pandoc** | Haskell/多语言 | 中（样式→Heading） | 好 | 中（需 MathML） | 好 | 中 | 无 | 无 | 通用性好，但无修订支持 |
 | **mammoth.js** | JavaScript | 差（仅 Heading 样式） | 中 | 无 | 好 | 无 | 无 | 无 | 简单快速，损失大，**无修订支持** |
-| **docx4j** | Java | 好 | 好 | 中 | 好 | 中 | 中 | **好** | 功能完整，Java 生态 |
-| **python-docx** | Python | 中 | 中 | 无 | 中 | 中 | 中 | **需手工解析 oxml** | Python 生态，轻量 |
+| **docx4j** | Java | 好 | 好 | 中 | 好 | 中 | 中 | **类型化对象（`RunIns`/`RunDel`）** | JAXB 类型覆盖修订元素（javadoc 11.5.14 已核验）；接受/拒绝端到端未实测 |
+| **python-docx** | Python | 中 | 中 | 无 | 中 | 中 | **好（1.2.0 起 `add_comment`/`comments`）** | **无公开 API；可经 `.element`/oxml 手工读写** | Python 生态，轻量；修订代价见 §3.3 |
 | **直接解析 OOXML** | 任意 | 需自研 | 需自研 | 需自研 | 需自研 | 需自研 | 需自研 | 需自研 | 最灵活，成本最高 |
 | **LibreOffice Headless** | 无语言 | 好 | 好 | 好 | 好 | 好 | 中 | 中 | 可转换中间格式 |
 
-**来源**: 各库官方文档及 GitHub Issues 实测反馈。
+**来源**: 各库官方文档/仓库（URL 与 HTTP 状态见 §13）；python-docx 行另有本机探针产物 `evidence/probe_pythondocx_trackchanges_output.txt`。
 
 ### 3.2 选型建议
 
 **推荐**: `docx4j`（Java）或 `python-docx`（Python）
 
 **理由**:
-1. `docx4j` 支持 Track Changes 解析（`w:ins`/`w:del` 提取）
-2. `python-docx` **无**Track Changes 支持，需手工解析 oxml 层
-3. 支持批注提取（`comments.xml` 解析）
+1. `docx4j` 提供类型化修订对象（`org.docx4j.wml.RunIns`/`RunDel`，JAXB 生成，javadoc 已核验），适合做修订解析
+2. `python-docx` **公开 API 无修订标记接口**（官方文档明确：修订标记内的段落不出现在 `Document.paragraphs`），但**可通过 `.element`（lxml `CT_Document`）/ oxml 层访问并读写底层 `w:ins`/`w:del`**（探针 [2][3] 已验证）。准确表述是「需手工实现 oxml 层」，而非「不能操作 OOXML 层」
+3. 批注：python-docx **1.2.0 起有公开 API**（`Document.add_comment()` / `Document.comments`，探针 [4]）；docx4j 亦有 `comments.xml` 类型化支持
 4. 样式映射成熟（Heading 样式→Markdown 标题）
 5. 社区活跃，文档完善
 
 **备选**: LibreOffice Headless（`soffice --headless --convert-to md`）
 
-**不推荐**: mammoth.js（样式损失过大，无修订支持，GitHub Issues #342/#456 不可核验）
+**不推荐**: mammoth.js（官方 README 自述「using semantic information … ignoring other details」，样式损失是设计取向；原引用的 Issues #342/#456 不可核验，已删除，见 E3）
+
+### 3.3 D-03 判据表：python-docx 路线做 Track Changes 的代价
+
+> 本表为 D-03（python-docx vs docx4j）选型评审的直接输入。依据：本机探针
+> `evidence/probe_pythondocx_trackchanges.py`（输出 `probe_pythondocx_trackchanges_output.txt`，
+> python-docx 1.2.0 / lxml 6.1.0，2026-11-07）与 §13 已核验 URL。
+
+| 能力 | python-docx 1.2.0 现状（证据） | 代价 | 是否可接受 |
+|------|-------------------------------|------|------------|
+| 读取 `w:ins`/`w:del` | **可行**：`document.element` 返回 lxml `CT_Document`，xpath 可取 author/date/id/文本（探针 [2]） | 手工 oxml 层：嵌套结构、`rPrChange`/`pPrChange`、表格行/段落标记修订均需自行覆盖；修订节点是原生 `_Element`，**无类型包装** | 可接受（只读导入场景） |
+| 写入/生成修订标记 | **可行**：lxml 构造 `w:ins` 后 `save()` 持久化（探针 [3]） | **无类型安全**：元素/属性顺序受 ECMA-376 约束，错误只在 Word 打开时暴露；**需自维护 schema 校验**（ECMA-376 XSD 或 Open XML SDK 验证器） | 有条件可接受（必须配 XSD 校验与回归样张） |
+| 接受/拒绝修订 | **无公开 API**（探针 [5]：`track_changes`/`revisions`/`accept_changes` 均不存在） | 需自实现 unwrap/合并语义及边界情况 | 代价高，D-03 需单独预算 |
+| 批注读写 | **有公开 API**：`add_comment()`/`comments`（探针 [4]，1.2.0 起） | 低 | 可接受。**纠正任务前提中的「无批注 API」旧断言**——该断言仅对 <1.2.0 成立 |
+| 公开视图完整性 | `paragraphs`/`runs`/`Paragraph.text` **不含修订标记内文本**（探针 [1]；官方 api/document.html 注释） | 朴素遍历会**静默丢失**修订内容，导入器必须改走 oxml 全树遍历 | 可接受，但必须显式处理 |
+| 对照：docx4j | `RunIns`/`RunDel` 类型化 JAXB 对象（javadoc 11.5.14，HTTP 200） | Java 栈集成成本；接受/拒绝端到端语义**未实测**（§12-10） | 作为 D-03 对照项，需补实测 |
+
+**一句话结论**: python-docx 做 Track Changes 的代价 = 在 lxml/oxml 层手工实现 `w:ins`/`w:del` 的解析、生成与接受/拒绝语义，无类型安全、需自维护 ECMA-376 schema 校验；批注自 1.2.0 已有公开 API，不构成代价。
 
 ---
 
@@ -240,6 +261,8 @@ DOCX 是 ZIP 归档，包含以下核心 XML：
 1. Markdown 无批注块语法
 2. Obsidian 无原生批注支持（`[待审计]`）
 3. 批注与正文分离存储是唯一可行方案
+
+**DOCX 侧补充（v0.3）**: 批注的 DOCX 读写并非瓶颈——python-docx 1.2.0 起提供 `Document.add_comment()` / `Document.comments` 公开 API（探针 [4] 验证），docx4j 有类型化 `comments.xml` 对象。瓶颈仅在 Markdown/Sidecar 一侧。
 
 ---
 
@@ -384,8 +407,9 @@ As shown in Figure \ref{fig:example}.
 | 数学公式 | 低 | MathML/LaTeX 识别 |
 | 表格 | 中 | 合并单元格 |
 
-**工具实测**（基于 Adobe Acrobat Pro 和 Tesseract OCR）:
-*数据未确认，需实测*
+**工具实测**: **未执行**（无样本、无脚本、无产物）。候选工具为 Adobe Acrobat Pro / Tesseract OCR；
+原 95%/85%/60–70% 等数字已全部删除（G2-4），列入 §12-9 未确认事项。
+下表「准确率」列为经验估计，**非实测数据**。
 
 ### 8.3 PDF 定位建议
 
@@ -543,23 +567,35 @@ def detect_drift(new_map, old_map):
 | 6 | LibreOffice 是否支持 Markdown 导入 | 是 | 需实测 |
 | 7 | Markdown 脚注扩展在各编辑器的一致性 | 是 | 需实测 |
 | 8 | 图片相对路径在各 OS 下的兼容性 | 是 | 需实测 |
+| 9 | PDF 提取/OCR 准确率（原 E10，无任何产物，数字已删） | 是 | 需实测（G2-4） |
+| 10 | docx4j 接受/拒绝修订的端到端语义与往返保真（本轮仅核验类型化对象存在） | 是 | D-03 前需实测 |
+| 11 | LibreOffice Headless 的 Markdown 转换能力（原 E8，无产物） | 是 | 需实测 |
 
 ---
 
 ## 13. 证据清单
 
-| 证据编号 | 内容 | 来源 | 行号/版本 |
-|----------|------|------|-----------|
-| E1 | Track Changes XML 标记定义 | Microsoft Office Open XML SDK | `Insertion`/`Deletion` 元素；**不可核验**（原 wDocumentChange 类不存在） |
-| E2 | Pandoc DOCX 导入能力 | Pandoc 官方文档 | v2.19.1；URL: https://pandoc.org/MANUAL.html#input-MS-Word-documents |
-| E3 | mammoth.js 样式支持限制 | mammoth.js GitHub | **不可核验**（Issues #342/#456 无法访问） |
-| E4 | docx4j Track Changes 支持 | docx4j 文档 | 8.3.0；URL: https://www.e-iceblue.io/docx4j/api/ |
-| E5 | python-docx 功能范围 | python-docx 文档 | 1.1.0；**不可核验**（无公开 Track Changes API） |
-| E6 | GFM 表格语法限制 | CommonMark Spec | 2021 修订版；URL: https://commonmark.org/help/ |
-| E7 | Pandoc 模板机制 | Pandoc 文档 | v2.19.1；URL: https://pandoc.org/MANUAL.html#reference-documents |
-| E8 | LibreOffice 转换支持 | LibreOffice 文档 | 7.4；**不可核验**（需实测验证） |
-| E9 | LaTeX 到 Markdown 转换 | Pandoc LaTeX 支持 | v2.19.1；URL: https://pandoc.org/MANUAL.html#latex |
-| E10 | PDF 文本提取准确率 | Adobe Acrobat Pro / Tesseract | 2024-11；**不可核验**（需实测验证） |
+> 全部 URL 于 **2026-11-07** 由本 Worker 用 `curl -sS -L` 实测；完整台账（含失败 URL 的处置）见
+> `evidence/E9_F9_evidence_urls.md`。本表不再保留任何未实测 URL。
+
+| 证据编号 | 内容 | 一手 URL | HTTP | 访问日期 | 版本/备注 |
+|----------|------|----------|------|----------|-----------|
+| E1 | OOXML 修订类型（`w:ins`/`w:del`） | https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.wordprocessing.insertedrun?view=openxml-3.0.1 | 200 | 2026-11-07 | 页面明确 qualified name = `w:ins`；类名 `InsertedRun` |
+| E1 | 同上（删除） | https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.wordprocessing.deletedrun?view=openxml-3.0.1 | 200 | 2026-11-07 | `DeletedRun` = `w:del` |
+| E2 | Pandoc DOCX 输入能力 | https://pandoc.org/MANUAL.html#option--from | 200 | 2026-11-07 | 锚点实测存在，`--from` 列表含 docx；旧锚点 `#input-MS-Word-documents` 不存在，已弃用 |
+| E3 | mammoth.js 样式映射取向 | https://github.com/mwilliamson/mammoth.js/blob/master/README.md | 200 | 2026-11-07 | README：「using semantic information … ignoring other details」；Issues #342/#456 引用已删除 |
+| E4 | docx4j 仓库（Plutext） | https://github.com/Plutext/docx4j | 200 | 2026-11-07 | 默认分支 `VERSION_17_3_6`；旧 e-iceblue URL 张冠李戴且 DNS 失败（000），已删除 |
+| E4 | docx4j 类型化修订对象 | https://javadoc.io/static/org.docx4j/docx4j-openxml-objects/11.5.14/org/docx4j/wml/RunIns.html | 200 | 2026-11-07 | 「Inserted Run Content … ins element declaration」 |
+| E4 | 同上（删除） | https://javadoc.io/static/org.docx4j/docx4j-openxml-objects/11.5.14/org/docx4j/wml/RunDel.html | 200 | 2026-11-07 | 「Deleted Run Content … del element declaration」 |
+| E5 | python-docx 仓库 | https://github.com/python-openxml/python-docx | 200 | 2026-11-07 | 真实组织为 python-openxml；旧 `python-docx/python-docx` 404 已删除 |
+| E5 | python-docx 官方文档（修订视图限制） | https://python-docx.readthedocs.io/en/latest/api/document.html | 200 | 2026-11-07 | 「paragraphs within revision marks such as `<w:ins>` or `<w:del>` do not appear」 |
+| E5 | python-docx `.element`/批注 API 探针 | `evidence/probe_pythondocx_trackchanges_output.txt`（本地产物） | — | 2026-11-07 | python-docx 1.2.0 / lxml 6.1.0；`document.element` = lxml `CT_Document`，可读写 `w:ins`/`w:del`；`add_comment` 存在 |
+| E6 | GFM 表格扩展（无合并单元格） | https://github.github.com/gfm/#tables-extension- | 200 | 2026-11-07 | 锚点实测存在；改引 GFM Spec（CommonMark 本身不含表格，原 commonmark.org/help 引用不切题） |
+| E7 | Pandoc reference.docx 模板 | https://pandoc.org/MANUAL.html#option--reference-doc | 200 | 2026-11-07 | 锚点实测存在；旧锚点 `#reference-documents` 已弃用 |
+| E8 | LibreOffice 转换支持 | 无（未实测） | — | — | **不可核验**，列入 §12-11；不保留无产物断言 |
+| E9 | Pandoc LaTeX 支持 | https://pandoc.org/MANUAL.html#latex | 200 | 2026-11-07 | 锚点 `id="latex"` 实测存在 |
+| E10 | PDF 提取/OCR 准确率 | 无（无产物） | — | — | **不可核验**，数字已全部删除，列入 §12-9（G2-4） |
+| E11 | ECMA-376（OOXML schema 依据） | https://ecma-international.org/publications-and-standards/standards/ecma-376/ | 200 | 2026-11-07 | schema 校验代价（§3.3）的标准依据 |
 
 ---
 
@@ -589,7 +625,7 @@ def detect_drift(new_map, old_map):
 
 | 功能 | 推荐方案 |
 |------|----------|
-| 导入器 | docx4j（Java）或 python-docx（Python） |
+| 导入器 | docx4j（Java）或 python-docx（Python）；Track Changes 代价判据见 §3.3（D-03 输入） |
 | 导出器 | Pandoc + 模板机制 |
 | 修订存储 | Sidecar JSON 文件 |
 | 图片 | 相对路径 + caption |
@@ -600,6 +636,8 @@ def detect_drift(new_map, old_map):
 ---
 
 **文件清单**:
-- `MANUSCRIPT_TECHNICAL_AUDIT.md` (本文件)
+- `MANUSCRIPT_TECHNICAL_AUDIT.md`（本文件）
+- `EVIDENCE_FIX_LOG.md`（两轮修复记录）
+- `evidence/`（E1–E9 证据修订 + URL 台账 + 探针脚本与输出）
 
-**状态**: 审计完成，结论已记录。
+**状态**: 审计完成；v0.3 门禁修订完成，零死链（每条引用 URL 均有 HTTP 状态记录）。

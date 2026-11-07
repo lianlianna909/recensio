@@ -42,12 +42,13 @@ current_round: "[[rnd_Q3F7KM2P]]"
 claims: ["[[clm_3XB8NRT5]]", "[[clm_9WD4PKMR]]"]   # 派生缓存
 figures: ["[[fig_7K3M9Q2P]]"]                        # 派生缓存
 reference_style_note: "Vancouver, as per author guidelines §4.2"
-section_order: ["[[sec_4M2P8QKT]]", "[[sec_7B3N5RTW]]", "[[sec_2JX9KQMW]]"]  # 派生
+section_order: ["[[sec_4M2P8QKT]]", "[[sec_6XW2QKMP]]", "[[sec_7B3N5RTW]]", "[[sec_2JX9KQMW]]"]  # 派生
 ---
 
 ```yaml swp:sections
 # D-04：结构化字段进正文块（§3.0.6）；title/level 以正文标题为准
 - {id: sec_4M2P8QKT, role: body,       status: draft, frozen: false, acronyms_defined: [TGI], notes: ""}
+- {id: sec_6XW2QKMP, role: body,       status: draft, frozen: false, acronyms_defined: [],    notes: ""}
 - {id: sec_7B3N5RTW, role: results,    status: draft, frozen: false, acronyms_defined: [],    notes: ""}
 - {id: sec_2JX9KQMW, role: discussion, status: draft, frozen: false, acronyms_defined: [],    notes: ""}
 ```
@@ -60,7 +61,7 @@ x_ext: {}
 
 Compound X has shown promising anti-tumour activity in vitro [[ref_2ABCDEFG#locator=p42|role=background]], but in vivo dose–response data remain limited ^par_9QK2M4XZ
 
-### Dose selection is critical ^sec_2JX9KQMW
+### Dose selection is critical ^sec_6XW2QKMP
 
 Prior studies used a narrow dose range, which we extend here ^par_1A2B3C4D
 
@@ -87,8 +88,8 @@ These observations support our central claim [[clm_3XB8NRT5]] ^par_3TW6PQRS
   {{tabref:…}} / {{eqref:…}}       表号 / 公式号引用（提案 §6.0.4）
   {{res:…|fmt=…}}                  数值注入（提案 §6.9）
 
-§ 若 Obsidian 块 ID 不接受下划线（待 Worker A 审计 U2），
-   编解码器会把 ^par_ 映射为 ^par-，上方文本由工具批量改写，模型语义不变。
+§ 下划线合法性已由交叉确认 C1 判定为「是」（2026-11-06），^par_ 主写法保留；
+   编解码器的 ^par_→^par- 映射仅为保险丝分支（未来版本收紧字符集时启用），模型语义不变。
 -->
 
 ---
@@ -106,7 +107,7 @@ source_sha256: "3f9a1c0e77b2d4e6a8c1f0b2938d5e4716a9b3c2d0e8f7a6b5c4d3e2f1a0b9c8
 generated_at: 2026-11-06T10:22:31+08:00
 entries:
   - {par: par_9QK2M4XZ, order: 12, section: sec_4M2P8QKT, anchor: "docx:3f9a1c0e#p:214#hash:77e0aa11", text_hash: 77e0aa11, track_change_state: clean, tombstone: false}
-  - {par: par_1A2B3C4D, order: 14, section: sec_2JX9KQMW, anchor: "docx:3f9a1c0e#p:216#hash:2c9b4e07", text_hash: 2c9b4e07, track_change_state: clean, tombstone: false}
+  - {par: par_1A2B3C4D, order: 14, section: sec_6XW2QKMP, anchor: "docx:3f9a1c0e#p:216#hash:2c9b4e07", text_hash: 2c9b4e07, track_change_state: clean, tombstone: false}
   - {par: par_6YH2NQWP, order: 21, section: sec_7B3N5RTW, anchor: "docx:3f9a1c0e#p:241#hash:8ad31f5c", text_hash: 8ad31f5c, track_change_state: clean, tombstone: false}
   - {par: par_8RK1MTXD, order: 24, section: sec_7B3N5RTW, anchor: "docx:3f9a1c0e#p:246#hash:10ff7be2", text_hash: 10ff7be2, track_change_state: clean, tombstone: false}
   - {par: par_3TW6PQRS, order: 26, section: sec_7B3N5RTW, anchor: "docx:3f9a1c0e#p:251#hash:c4410d8e", text_hash: c4410d8e, track_change_state: clean, tombstone: false}

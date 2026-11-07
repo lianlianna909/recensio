@@ -44,7 +44,7 @@ supplementary_of:
 current_round: "[[rnd_Q3F7KM2P]]"
 claims: ["[[clm_3XB8NRT5]]", "[[clm_9WD4PKMR]]"]
 figures: ["[[fig_7K3M9Q2P]]"]
-section_order: ["[[sec_4M2P8QKT]]", "[[sec_7B3N5RTW]]", "[[sec_2JX9KQMW]]"]
+section_order: ["[[sec_4M2P8QKT]]", "[[sec_6XW2QKMP]]", "[[sec_7B3N5RTW]]", "[[sec_2JX9KQMW]]"]
 reference_style_note: "Vancouver, as per author guidelines §4.2"
 ---
 
@@ -59,6 +59,7 @@ x_ext:
 ```yaml swp:sections
 # Section 弱实体元数据（§3.3）；title/level 以正文标题为准，不在此重复
 - {id: sec_4M2P8QKT, role: body,       status: draft, frozen: false, acronyms_defined: [TGI, MTD], notes: ""}
+- {id: sec_6XW2QKMP, role: body,       status: draft, frozen: false, acronyms_defined: [],        notes: ""}
 - {id: sec_7B3N5RTW, role: results,    status: draft, frozen: false, acronyms_defined: [],        notes: ""}
 - {id: sec_2JX9KQMW, role: discussion, status: draft, frozen: false, acronyms_defined: [],        notes: "待补 limitations"}
 ```
@@ -80,7 +81,7 @@ entries:
 
 Compound X has shown promising anti-tumour activity in vitro [[ref_2ABCDEFG#locator=p42|role=background]], but in vivo dose–response data remain limited ^par_9QK2M4XZ
 
-### Dose selection is critical ^sec_2JX9KQMW
+### Dose selection is critical ^sec_6XW2QKMP
 
 Prior studies used a narrow dose range, which we extend here ^par_1A2B3C4D
 

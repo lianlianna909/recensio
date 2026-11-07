@@ -160,3 +160,75 @@
 | `evidence/OLEAFLY_LICENSE_EVIDENCE.md` | 新建 | Oleafly 许可证证据 |
 | `evidence/TEXMIND_LICENSE_EVIDENCE.md` | 新建 | TeXMind 搜索记录 |
 | `EVIDENCE_FIX_LOG.md` | 新建 | 本文件 |
+
+---
+
+# Phase 1 门禁收尾（2026-11-07）
+
+**依据**: 复审 `reports/qa/PHASE_0_RECHECK.md` 将放行条件 8 判为 PARTIAL；本轮只收尾四项 G3-1～G3-4，不重做审计。
+
+## G3-1: Quarto 结论已过时（commit SHA 已核实）
+
+### 原状态
+报告与证据文件均写「commit SHA 未能核实（GitHub API 访问受限）」，但复审实测 API 可查，且已取得 2021 年 commit `6582777c9d` 的 COPYING.md = GPL v2。
+
+### 本轮核实（全部经 GitHub API 按 ref 获取原文验证，非二手转述）
+- **GPL v2 时期**: commit `6582777c9d22eb08440ab188ddcbd3d1dca07ec4`（2021-02-22，JJ Allaire）的 `COPYING.md` 开头为 "GNU GENERAL PUBLIC LICENSE / Version 2, June 1991"。
+- **改用 MIT 的 commit**: commit `28cdb28f990afa3abdd2aa21f4fde9c1190eb3cb`（2023-11-15，消息 "mit license"）将 `COPYING.md` 改为 MIT（Copyright (c) 2023 Posit Software, PBC）。
+- **仍未落实（单独标注，不与「不可核验」混同）**: 改用 MIT 的**具体发布 tag**。抽样核验 tag v1.4.498–v1.4.503 的 COPYING.md 均仍为 GPL v2 文本；受 GitHub API 速率限制（匿名 60 次/小时），改 MIT 后的首个发布 tag 未逐个核验完毕。API 已确认可查，后续可补验。
+
+### 修复动作
+1. `OPEN_SOURCE_AUDIT.md` §2.5 G3 说明改为「已核实」，写入两个 commit SHA 与文件路径 `COPYING.md`
+2. 「改用 MIT 的具体 tag」单独标注为未落实（⚠️），明确其与「不可核验」的区别
+3. `evidence/QUARTO_LICENSE_EVIDENCE.md` 同步更新核实结果与 Verification Status
+4. `OPEN_SOURCE_AUDIT.md` §8.3「未能核实事项」表更新该项状态，新增「具体发布 tag」行
+
+## G3-2: 兼容矩阵「闭源」行语义重复
+
+### 原状态
+§4 矩阵最后一行为「闭源 ( proprietary )」，但闭源不是许可证；且第 1–3 行（宽松许可证允许闭源）已隐含同样信息，语义重复。
+
+### 修复动作
+1. 删除「闭源」行，矩阵改为纯「许可证 × 许可证」6×6 兼容矩阵
+2. 新增 §4.1「使用场景：闭源分发 / SaaS」，把闭源分发/SaaS 作为使用场景单独说明约束（含 GPL 分发触发 vs AGPL 网络触发的差异），每个判定给依据，争议处标「需法务确认」
+3. 矩阵新增注记：copyleft 与宽松许可的兼容方向说明；进程调用 GPL 二进制的问题指向 `PANDOC_BOUNDARY.md`
+4. §4.2 依据表补充 AGPL 网络义务来源（AGPL-3.0 条文、FSF why-affero-gpl）
+5. G2 修正总结追加 G3-2 修正记录
+
+## G3-3: Pandoc 边界（本轮新增）
+
+### 修复动作
+1. 新建 `PANDOC_BOUNDARY.md`，内容：
+   - **事实**: Pandoc 许可证为 GPL-2.0-or-later（pandoc.org/MANUAL.html 一手来源）；原报告标 "GPL-2.0" 不准确，文中要求更正
+   - **进程调用 vs 链接**: 引用 FSF GPL FAQ 四个锚点（#MereAggregation、#GPLInPropotarySystem、#GPLPlugins、#IfLibraryIsGPL、#NFUseGPLPlugins，均为 2026-11-07 实测可达），只转述 FSF 立场原文要点，注明「通常视为」≠ 法律定论
+   - **三种分发情形**: 用户自装 / 随产品分发二进制 / SaaS，各列义务与触发条件
+   - **建议做法**: 独立进程 + arm's length 通信 + 优先用户自装；列出必须留给法务的四个边界
+   - **无任何「应该没问题」类结论**
+2. `OPEN_SOURCE_AUDIT.md` §3.2、§7 来源表、§8.3 增加对应引用
+
+## G3-4: 分发形态前提改为显式条件句
+
+### 原状态
+「闭源」前提只在报告内声明，`decisions/` 中无裁决（D-09 仍 PENDING）。
+
+### 修复动作
+1. `OPEN_SOURCE_AUDIT.md` §0 改为显式条件句：「若本项目最终选择闭源分发……则 §1–§6 结论成立；若改为 MIT / Apache-2.0 开源，则凡涉及 AGPL 与 GPL 的结论需整体重估」
+2. §0 明确指出 `decisions/` 中 D-09 为 PENDING，本报告不替项目做最终选型
+3. 新增「两种分发情形下的结论差异表」，逐项覆盖 TeXlyre（AGPL）、Oleafly（AGPL）、Quarto v1.4+（MIT）、Quarto v1.3 及更早（GPL-2.0）、Pandoc（GPL-2.0-or-later）及宽松许可项目
+4. 删除原「GPL-3.0 开源分发」行（任务要求的差异表只需两情形；GPL-3.0 情形保留在 §4 矩阵的列中）
+
+## 硬性约束遵守情况
+- 只修改了 `research/open-source-audit/` 下的文件 ✅
+- 未修改 `decisions/`、其他 Worker 目录、`reports/qa/`、`AGENTS.md` ✅
+- 所有 URL（FSF FAQ 锚点、pandoc.org、gnu.org 许可文本、两个 Quarto commit 页面）均于 2026-11-07 经 HTTP 状态码核验（200）✅
+- 所有 commit SHA 均经 GitHub API 按 ref 获取 COPYING.md 原文验证 ✅
+- GitHub API 速率限制导致 tag 抽样中途停止的部分如实标注为「未落实」，未编造 ✅
+
+## 本轮文件变更清单
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `OPEN_SOURCE_AUDIT.md` | 就地修订 | §0 条件句+差异表；§2.5 G3-1 核实；§3.2 Pandoc 指引；§4 矩阵纯化+§4.1 使用场景；§7 来源；§8.3 状态 |
+| `PANDOC_BOUNDARY.md` | 新建 | Pandoc 调用边界合规说明（FSF 来源、三种分发情形、法务边界） |
+| `EVIDENCE_FIX_LOG.md` | 追加 | 本轮记录 |
+| `evidence/QUARTO_LICENSE_EVIDENCE.md` | 修订 | commit `6582777c9d`（GPL v2）与 `28cdb28f`（MIT）核实记录；tag 未落实标注 |

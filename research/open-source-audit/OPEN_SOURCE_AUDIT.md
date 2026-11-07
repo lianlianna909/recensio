@@ -1,30 +1,35 @@
 # Open Source Audit (修订版)
 
 **审计日期**: 2026-11-06  
-**修订日期**: 2026-11-06  
+**修订日期**: 2026-11-06 / 2026-11-07（Phase 1 门禁收尾）  
 **审计员**: Worker D - Open-source Researcher  
 **项目**: ScientificWritingProject  
-**修订原因**: 独立 QA 审计判定原报告为 RISK，需修复 G1–G6 六项问题
+**修订原因**: 独立 QA 审计判定原报告为 RISK，需修复 G1–G6 六项问题；2026-11-07 复审后按 G3-1～G3-4 收尾（Quarto 结论核实、兼容矩阵去语义重复、新增 Pandoc 边界文档、分发前提改为显式条件句）
 
 ---
 
-## 0. 分发形态前提声明
+## 0. 分发形态前提声明（显式条件句）
 
-> **关键前提**: 本报告的许可证兼容性分析与可复用性判定均基于以下假设：
+> **G3-4 修正（2026-11-07）**: 本报告的许可证兼容性分析与可复用性判定**基于以下条件成立**：
 >
-> **本项目可能以闭源形式分发（包括商业 SaaS 或私有部署）。**
+> **若本项目最终选择闭源分发（包括商业 SaaS 或私有部署），则本报告 §1–§6 的结论成立。**
 >
-> 此前提来源于项目需求文档中对"可复用性"的强调，以及对 AGPL/GPL 项目标记为 "Reference-only" 的判定逻辑。
+> **若本项目改为 MIT / Apache-2.0 等宽松许可证开源，则凡涉及 AGPL 与 GPL 的结论需整体重估**，具体差异见下表。
+>
+> 该前提目前在 `decisions/` 中**尚无裁决**（D-09 状态为 PENDING）。本报告不替项目做最终选型；分发形态确定后，需按下表核对并更新相关结论。
 
-### 若前提变更
+### 两种分发情形下的结论差异表
 
-| 分发形态 | 对结论的影响 |
-|----------|-------------|
-| **闭源分发**（当前假设） | AGPL 项目 (TeXlyre, Oleafly) 不可直接使用；GPL-2.0 历史版本 (Quarto ≤v1.3) 不可链接；宽松许可证项目均可使用 |
-| **MIT 开源分发** | 所有项目均可使用，包括 AGPL 项目（但 AGPL 的 copyleft 会传染至整个项目）；GPL-2.0 历史版本可使用（但 GPL copyleft 传染） |
-| **GPL-3.0 开源分发** | AGPL-3.0 项目可兼容使用；GPL-2.0-only 项目不兼容（除非标注 "or later"）；Apache-2.0 与 GPL-3.0 单向兼容 |
+| 事项 | 情形 A：闭源分发（当前前提） | 情形 B：宽松许可证开源（MIT / Apache-2.0） |
+|------|---------------------------|------------------------------------------|
+| **TeXlyre (AGPL-3.0)** | ❌ 不可使用：AGPL 强制向网络用户提供源代码，与闭源/SaaS 冲突（**Reference-only**） | ⚠️ 可使用但有传染义务：整个衍生项目须整体改为 AGPL-3.0 开源，与 MIT/Apache-2.0 目标许可不兼容，仅可作独立分离组件使用（依据：[AGPL-3.0 条文](https://www.gnu.org/licenses/agpl-3.0.en.html)） |
+| **Oleafly (AGPL-3.0)** | ❌ 同 TeXlyre：不可使用（**Reference-only**） | ⚠️ 同 TeXlyre：仅可作独立分离组件，不能合入宽松许可代码库 |
+| **Quarto v1.4+ (MIT)** | ✅ 可使用，但需评估其内嵌 Pandoc (GPL) 的分发义务（见 `PANDOC_BOUNDARY.md`） | ✅ 可使用，Pandoc 以独立进程调用时义务同左（见 `PANDOC_BOUNDARY.md`） |
+| **Quarto v1.3 及更早 (GPL-2.0)** | ❌ 不可使用：GPL-2.0 copyleft 与闭源冲突（commit `6582777c9d` 的 COPYING.md 已核实为 GPL v2） | ⚠️ 可使用但有传染义务：衍生项目须遵循 GPL-2.0；与 Apache-2.0 代码合并不兼容（FSF 立场，见 §4 依据） |
+| **Pandoc (GPL-2.0-or-later)** | ⚠️ 仅以独立进程（fork/exec 独立二进制）调用可行；随产品分发二进制需履行 GPL 义务；详见 `PANDOC_BOUNDARY.md` | ⚠️ 义务同左，独立进程调用仍是推荐边界 |
+| **Curvenote (MIT)** / **Manubot (BSD-2-Clause-Patent)** / **Typst (Apache-2.0)** | ✅ 两种情形下均可使用 | ✅ 均可使用，结论不变 |
 
-**建议**: 项目决策层应明确分发形态后再做最终选型。本报告以"闭源分发"为默认前提。
+> **注意**: 无论哪种情形，AGPL 项目都不能被「部分吸收后保持原许可证」——AGPL 的传染性决定了合入即改变整个项目的许可证。若项目目标是 MIT/Apache-2.0，TeXlyre/Oleafly 在两种情形下的实际选项相同：独立组件或仅作参考。
 
 ---
 
@@ -418,7 +423,12 @@ manubot/
 - **CLA**: 未要求
 - **来源**: 一手来源 — GitHub API 获取 COPYING.md + 官方网站 license.html
 
-> **G3 说明**: Quarto 官方许可证页面 (https://quarto.org/license.html) 明确声明 "Quarto version 1.3 (and earlier) is licensed under the GNU GPL v2. Quarto version 1.4 is licensed under the MIT License." 原报告称 "GPL-2.0" 与官方表述 "GNU GPL v2" 一致。但 **变更的具体 commit SHA 未能核实**（GitHub API 访问受限），因此无法提供 commit 级证据。方向性结论可靠：旧版本曾为 copyleft (GPL-2.0)，v1.4 起改为 MIT。
+> **G3 说明（2026-11-07 更新）**: Quarto 官方许可证页面 (https://quarto.org/license.html) 明确声明 "Quarto version 1.3 (and earlier) is licensed under the GNU GPL v2. Quarto version 1.4 is licensed under the MIT License."
+>
+> **G3-1 已核实（2026-11-07）**: commit 级证据已取得：
+> - **GPL v2 时期证据**: commit [`6582777c9d22eb08440ab188ddcbd3d1dca07ec4`](https://github.com/quarto-dev/quarto-cli/commit/6582777c9d22eb08440ab188ddcbd3d1dca07ec4)（2021-02-22，JJ Allaire）的 `COPYING.md` 开头为 "GNU GENERAL PUBLIC LICENSE / Version 2, June 1991"，已通过 GitHub API 按该 ref 获取原文核实。
+> - **改用 MIT 的 commit**: commit [`28cdb28f990afa3abdd2aa21f4fde9c1190eb3cb`](https://github.com/quarto-dev/quarto-cli/commit/28cdb28f990afa3abdd2aa21f4fde9c1190eb3cb)（2023-11-15，消息 "mit license"）将 `COPYING.md` 改为 MIT（Copyright (c) 2023 Posit Software, PBC），已通过 GitHub API 按该 ref 获取原文核实。
+> - **仍缺证据（未落实，单独标注）**: 「改用 MIT 的**具体发布 tag**」——截至本次修订，受 GitHub API 速率限制影响，未能确认改用 MIT 后的第一个正式发布 tag（抽样检查 v1.4.498–v1.4.503 的 COPYING.md 仍为 GPL v2 文本，v1.4 更后期的 tag 未及逐个核验）。此项与「不可核验」性质不同：API 已确认可查，仅是本轮采样未完成，后续可补验。
 
 #### 源码结构
 ```
@@ -576,10 +586,10 @@ typst/
 
 **风险说明**:
 - ❌ GPL-2.0 代码不能与闭源产品链接
-- ⚠️ Quarto v1.4+ 已改为 MIT，但依赖 Pandoc (GPL-2.0)
-- ⚠️ 通过 Pandoc 进行文档转换是否触发 GPL 传染需法务确认
+- ⚠️ Quarto v1.4+ 已改为 MIT，但依赖 Pandoc (GPL-2.0-or-later)
+- ⚠️ 通过 Pandoc 进行文档转换是否触发 GPL 传染需法务确认；FSF 对 fork/exec 独立进程调用的官方立场及三种分发情形的义务分析见 `PANDOC_BOUNDARY.md`
 
-**建议**: 使用 Quarto v1.4+；评估 Pandoc 依赖的合规风险。
+**建议**: 使用 Quarto v1.4+；Pandoc 合规路径见 `PANDOC_BOUNDARY.md`（推荐：独立进程调用 + 用户自装或按 GPL 义务分发二进制；最终判定需法务确认）。
 
 ### 3.3 低风险 (MIT, Apache-2.0, BSD-2-Clause-Patent)
 
@@ -604,25 +614,42 @@ typst/
 ## 4. 许可证兼容矩阵
 
 > **G2 修正**: 原矩阵存在多处事实错误。以下为修订版，逐格给出依据。
+>
+> **G3-2 修正（2026-11-07）**: 本矩阵现为**纯「许可证 × 许可证」兼容矩阵**。原矩阵最后一行「闭源 ( proprietary )」不是许可证，与前几行语义重复，已删除；「闭源分发 / SaaS」作为**使用场景**另见 §4.1。
 
 ### 前提声明
-- 本矩阵评估的是**单向兼容**：左侧许可证的项目能否包含/链接右侧许可证的代码
+- 本矩阵评估的是**许可证之间的单向兼容**：左侧许可证的项目能否包含/链接右侧许可证的代码
+- 本矩阵**不预设任何分发形态**；闭源分发等使用场景的约束见 §4.1
 - "✅" = 兼容（有明确依据）
 - "❌" = 不兼容（有明确依据）
 - "⚠️ 需法务确认" = 存在争议或无定论
-- 评估基于闭源分发前提
 
 | 本项目 → 依赖 ↓ | MIT | BSD-2-Clause-Patent | Apache-2.0 | GPL-2.0-only | GPL-3.0-only | AGPL-3.0 |
 |---|---|---|---|---|---|---|
-| **MIT (闭源)** | ✅ 同许可 | ✅ 宽松→宽松 | ✅ 宽松→宽松 | ❌ GPL copyleft 传染 | ❌ GPL copyleft 传染 | ❌ AGPL copyleft 传染 |
-| **BSD-2-Clause-Patent (闭源)** | ✅ 宽松→宽松 | ✅ 同许可 | ✅ 宽松→宽松 | ❌ GPL copyleft 传染 | ❌ GPL copyleft 传染 | ❌ AGPL copyleft 传染 |
-| **Apache-2.0 (闭源)** | ✅ 宽松→宽松 | ✅ 宽松→宽松 | ✅ 同许可 | ❌ GPL-2.0 不兼容 Apache-2.0 (FSF 立场) | ✅ Apache-2.0→GPL-3.0 单向兼容 (FSF 确认) | ❌ AGPL copyleft 传染 |
+| **MIT** | ✅ 同许可 | ✅ 宽松→宽松 | ✅ 宽松→宽松 | ❌ GPL copyleft 传染 | ❌ GPL copyleft 传染 | ❌ AGPL copyleft 传染 |
+| **BSD-2-Clause-Patent** | ✅ 宽松→宽松 | ✅ 同许可 | ✅ 宽松→宽松 | ❌ GPL copyleft 传染 | ❌ GPL copyleft 传染 | ❌ AGPL copyleft 传染 |
+| **Apache-2.0** | ✅ 宽松→宽松 | ✅ 宽松→宽松 | ✅ 同许可 | ❌ GPL-2.0 不兼容 Apache-2.0 (FSF 立场) | ✅ Apache-2.0→GPL-3.0 单向兼容 (FSF 确认) | ❌ AGPL copyleft 传染 |
 | **GPL-2.0-only** | ✅ GPL 可包含宽松代码 | ✅ GPL 可包含宽松代码 | ❌ GPL-2.0 不兼容 Apache-2.0 (FSF 立场) | ✅ 同许可 | ⚠️ 需法务确认 (GPL-2.0→GPL-3.0 升级条款存在争议) | ❌ GPL-2.0 与 AGPL-3.0 不兼容 |
 | **GPL-3.0-only** | ✅ GPL 可包含宽松代码 | ✅ GPL 可包含宽松代码 | ✅ Apache-2.0→GPL-3.0 单向兼容 | ⚠️ 需法务确认 | ✅ 同许可 | ✅ GPL-3.0 与 AGPL-3.0 兼容 |
 | **AGPL-3.0** | ✅ AGPL 可包含宽松代码 | ✅ AGPL 可包含宽松代码 | ✅ Apache-2.0→AGPL-3.0 兼容 (通过 GPL-3.0) | ❌ GPL-2.0 与 AGPL-3.0 不兼容 | ✅ GPL-3.0 与 AGPL-3.0 兼容 | ✅ 同许可 |
-| **闭源 ( proprietary )** | ✅ 宽松许可允许闭源 | ✅ 宽松许可允许闭源 | ✅ 宽松许可允许闭源 | ❌ GPL 不允许闭源 | ❌ GPL 不允许闭源 | ❌ AGPL 不允许闭源 |
 
-### 依据来源
+> **注**: copyleft 许可证（GPL/AGPL）可以包含宽松许可证代码，方向为「强→弱」；反之（宽松项目包含 copyleft 代码）会触发传染，故标 ❌。此矩阵描述的是代码组合的许可证兼容性；通过**独立进程**调用 GPL 二进制（如 Pandoc）是否构成「衍生作品」是另一个问题，见 `PANDOC_BOUNDARY.md`。
+
+### 4.1 使用场景：闭源分发 / SaaS
+
+> **G3-2 修正**: 以下约束原先是矩阵中的「闭源」行，现移出矩阵单独成节。这些是**使用/分发场景**对许可证选择施加的约束，不是许可证之间的兼容关系。
+
+| 使用场景 | MIT | BSD-2-Clause-Patent | Apache-2.0 | GPL-2.0/3.0 | AGPL-3.0 |
+|---------|-----|---------------------|------------|-------------|----------|
+| 闭源分发（二进制或源码，不公开源代码） | ✅ 允许 | ✅ 允许 | ✅ 允许 | ❌ 整体以 GPL 许可分发（即开源）；不含/不链接 GPL 代码的独立进程调用除外（见 `PANDOC_BOUNDARY.md`） | ❌ 同 GPL 义务 + 网络使用即触发源码提供义务 |
+| SaaS / 网络服务 | ✅ 允许 | ✅ 允许 | ✅ 允许 | ⚠️ GPL 的义务在「分发」时触发，纯 SaaS 内部使用不触发分发义务，但若对外分发则同上（需法务确认边界） | ❌ AGPL 第13条将义务扩展到网络使用：向用户提供服务即须提供对应源代码（依据：[AGPL-3.0 条文](https://www.gnu.org/licenses/agpl-3.0.en.html)、[FSF: Why the Affero GPL](https://www.gnu.org/licenses/why-affero-gpl.en.html)） |
+
+**说明与限制**:
+- 本节的 ✅/❌ 是**许可证条文与 FSF 立场的转述**，不构成法律意见；GPL「衍生作品」边界（尤其动态链接、插件、SaaS 架构）存在争议空间，标注 ⚠️ 需法务确认
+- SaaS 场景下 GPL 与 AGPL 的核心差异：GPL 的源码义务由「分发」触发，AGPL 额外由「网络交互」触发
+- 独立进程调用 GPL 二进制（不链接、不修改、作为独立程序分发或由用户自装）是否构成衍生作品，FSF 有官方立场，详见 `PANDOC_BOUNDARY.md`
+
+### 4.2 依据来源
 
 | 判定 | 依据 |
 |------|------|
@@ -631,12 +658,16 @@ typst/
 | GPL-2.0 × AGPL-3.0 = ❌ | GPL-2.0-only 与 AGPL-3.0 不兼容（不同 major 版本的 GPL 系列） |
 | GPL-3.0 × AGPL-3.0 = ✅ | GPL-3.0 第13条明确允许与 AGPL-3.0 组合 |
 | AGPL-3.0 行不全 ✅ | 原报告 AGPL 整行全 ✅ 系错误；AGPL 仍受 GPL 系列兼容性约束 |
+| GPL/AGPL vs 宽松许可 ❌ | FSF 许可证列表: https://www.gnu.org/licenses/license-list.en.html （copyleft 条款） |
+| AGPL 网络义务 | AGPL-3.0 条文: https://www.gnu.org/licenses/agpl-3.0.en.html ；FSF 立场: https://www.gnu.org/licenses/why-affero-gpl.en.html |
 
 > **G2 修正总结**: 
 > 1. `GPL-2.0 × Apache-2.0` 由原报告的 ✅ 更正为 ❌（FSF 确认不兼容）
 > 2. `AGPL-3.0` 行由原报告的全 ✅ 更正为存在 ❌ 格子
 > 3. `CC-BY-4.0 × GPL` 行已删除（CC 许可证不适用于软件，不应出现在软件兼容矩阵中）
 > 4. 新增 BSD-2-Clause-Patent 列
+>
+> **G3-2 修正总结**: 原矩阵最后一行「闭源 ( proprietary )」已删除——闭源不是许可证，与第 1–3 行（宽松许可证允许闭源）语义重复。使用场景约束另见 §4.1。
 
 ---
 
@@ -701,7 +732,13 @@ typst/
 | Manubot | GitHub 仓库 LICENSE.md 文件 | https://github.com/manubot/manubot/blob/main/LICENSE.md |
 | Quarto | GitHub 仓库 COPYING.md 文件 | https://github.com/quarto-dev/quarto-cli/blob/main/COPYING.md |
 | Quarto | 官方许可证页面 | https://quarto.org/license.html |
+| Quarto | GPL v2 时期 commit（COPYING.md = GPL v2） | https://github.com/quarto-dev/quarto-cli/commit/6582777c9d22eb08440ab188ddcbd3d1dca07ec4 |
+| Quarto | 改用 MIT 的 commit（COPYING.md 改为 MIT） | https://github.com/quarto-dev/quarto-cli/commit/28cdb28f990afa3abdd2aa21f4fde9c1190eb3cb |
 | Typst | GitHub 仓库 LICENSE 文件 | https://github.com/typst/typst/blob/main/LICENSE |
+| Pandoc | 官方手册（声明 "Released under the GPL, version 2 or greater"） | https://pandoc.org/MANUAL.html |
+| Pandoc 调用边界 | FSF GPL FAQ: 聚合与组合的区分 | https://www.gnu.org/licenses/gpl-faq.en.html#MereAggregation |
+| Pandoc 调用边界 | FSF GPL FAQ: GPL 程序嵌入专有系统 | https://www.gnu.org/licenses/gpl-faq.en.html#GPLInProprietarySystem |
+| Pandoc 调用边界 | FSF GPL FAQ: fork/exec 插件与组合程序 | https://www.gnu.org/licenses/gpl-faq.en.html#GPLPlugins |
 | 许可证兼容性 | FSF 许可证列表 | https://www.gnu.org/licenses/license-list.en.html |
 | 许可证兼容性 | SPDX 许可证列表 | https://spdx.org/licenses/ |
 | 许可证兼容性 | Apache-2.0 与 GPL 兼容性 | https://www.apache.org/licenses/GPL-compatibility.html |
@@ -741,9 +778,10 @@ typst/
 | 事项 | 状态 | 说明 |
 |------|------|------|
 | TeXMind 项目 | ❌ 未找到 | 多次搜索未果 |
-| Quarto GPL→MIT 变更 commit SHA | ⚠️ 未能获取 | GitHub API 访问受限 |
-| 各项目的最新 commit SHA | ⚠️ 未能获取 | GitHub API 访问受限 |
-| Pandoc 依赖对 Quarto 闭源分发的影响 | ⚠️ 需法务确认 | GPL-2.0 依赖的传染范围 |
+| Quarto GPL→MIT 变更 commit SHA | ✅ 已核实（2026-11-07） | GPL v2: commit `6582777c9d`（2021-02-22）的 COPYING.md = GPL v2；改 MIT: commit `28cdb28f`（2023-11-15）的 COPYING.md = MIT，均已按 ref 获取原文 |
+| Quarto 改用 MIT 的具体发布 tag | ⚠️ 未落实 | 抽样核验 v1.4.498–v1.4.503 仍为 GPL v2 文本；受 GitHub API 速率限制，改 MIT 后的首个发布 tag 未逐个核验完毕，后续可补验（与「不可核验」不同，API 已确认可查） |
+| 各项目的最新 commit SHA | ⚠️ 未能获取 | GitHub API 速率限制（未认证请求 60 次/小时） |
+| Pandoc (GPL-2.0-or-later) 以独立进程调用对闭源分发的影响 | ⚠️ 需法务确认 | 事实与 FSF 立场已整理至 `PANDOC_BOUNDARY.md`，最终判定留给法务 |
 | 各项目的 DOCX Track Changes 实际测试 | ❌ 未测试 | 需实际测试验证 |
 
 ---
@@ -763,7 +801,7 @@ typst/
 
 ---
 
-**文档版本**: 2.0 (修订版)  
-**最后更新**: 2026-11-06  
+**文档版本**: 2.1 (Phase 1 门禁收尾)  
+**最后更新**: 2026-11-07  
 **审计状态**: 修订完成 (6/7 项目已核实，1 项未能核实)  
-**QA 修复状态**: G1-G6 全部已处理
+**QA 修复状态**: G1–G6 已处理；复审 G3-1～G3-4 已收尾（G3-1 Quarto 已核实、G3-2 矩阵已纯化、G3-3 新增 `PANDOC_BOUNDARY.md`、G3-4 前提改为显式条件句 + §0 差异表）
