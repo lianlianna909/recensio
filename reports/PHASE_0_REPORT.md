@@ -1,18 +1,19 @@
 # Phase 0 报告 — ScientificWritingProject Technical Audit
 
-> 2026-11-06 · Technical Lead (ORCA-LEAD)
-> 验收状态：**FAIL**
-> 结论依据：独立 QA 报告 `reports/qa/PHASE_0_AUDIT_REPORT.md`（总体判定 FAIL，6 个阻断级缺陷）
+> 2026-11-07 · Technical Lead (ORCA-LEAD)
+> **验收状态：PASS WITH RISKS**
+> 依据：`reports/qa/PHASE_0_CROSS_VALIDATION.md`（第三方独立复核）判定当前工作区（`7b1890d` 之后）可进入 Phase 1，残留 7 项非阻断风险。
+> 历史：第一轮 QA 判 **FAIL**（6 个阻断项）→ 修订轮 → 复审（claude）自判 PASS WITH RISKS → **交叉验证推翻该降级的合法性**，但确认门禁修复已实质关闭缺陷 → 维持 PASS WITH RISKS。
 
 ---
 
-## 1. 验收状态：FAIL
+## 1. 结论
 
-**FAIL 的范围是"数据模型文档 + 两份报告的证据质量"，不是"技术方向"。**
+**技术方向成立，可以进入 Phase 1；但有一项治理前置必须先解决。**
 
-架构方向（Obsidian 宿主 + 外部引擎 + 文件即真）没有被证伪；被证伪的是**当前这版数据模型文档的内部一致性**，以及 Manuscript / Open-source 两份报告的部分证据。
+架构方向（Obsidian 宿主 + 外部引擎 + 文件即真）在整个审计过程中从未被证伪。被反复修正的是**文档内部一致性**与**证据质量**，二者现已闭合。
 
-按放行条件，6 个阻断项全部关闭前不得进入 Phase 1 实现。
+唯一必须在你动手前定下的是 **D-09 分发形态**：闭源 / 开源（MIT-Apache）/ 仅自用。AGPL（TeXlyre、Oleafly）与 GPL（Quarto、Pandoc）的全部结论都挂在这个前提上，前提不定，法务结论就是空的。
 
 ---
 
@@ -22,148 +23,150 @@
 |---|---|
 | Orca CLI | v1.4.250，runtime ready / connected |
 | Orchestration | 启用 |
-| 项目仓库 | `E:\ScientificWritingProject`，git 初始化于本次会话，分支 `main` |
+| 项目仓库 | `E:\\ScientificWritingProject`，分支 `main` |
 | 初始提交 | `e0e9af6` |
-| 文档提交 | `b531b74` |
+| 本轮终态提交 | `852da67` + 本次报告提交 |
 | Orca 注册 | `kind=git`，repo id `56e55e0f-49db-4f85-bddc-39986f890c15` |
+| Run | `run_c3ec9d828744` — ScientificWritingProject - Phase 0 Technical Audit |
 
 ---
 
-## 3. Run 与 Task 状态
+## 3. 任务与 Agent 执行记录
 
-Run：`run_c3ec9d828744` — ScientificWritingProject - Phase 0 Technical Audit
-
-| Task | Worker | Agent | 状态 |
+| 阶段 | 任务 | Agent | 结果 |
 |---|---|---|---|
-| A Obsidian Architect | worker-a-obsidian | claude | completed |
-| B Manuscript Specialist | worker-b-manuscript | pi | completed |
-| C Scientific Modeler | worker-c-datamodel | claude | completed |
-| D Open-source Researcher | worker-d-opensource | qoder-cn | completed |
-| QA Phase 0 Audit | qa-phase0-hermes | hermes | completed |
+| 审计 | A Obsidian Architect | claude | completed |
+| 审计 | B Manuscript Specialist | pi | completed（越界写入父目录，Lead 收回） |
+| 审计 | C Scientific Modeler | claude | completed |
+| 审计 | D Open-source Researcher | qoder-cn | completed |
+| QA-1 | Phase 0 Audit | codebuddy → codex → dsh → **hermes** | completed（FAIL） |
+| 修订 | Fix Data Model B1–B6 | claude | completed |
+| 修订 | Fix Manuscript F1–F9 | pi → hermes → **claude** | completed |
+| 修订 | Fix Open Source G1–G6 | qoder-cn | completed |
+| 修订 | Cross-check Obsidian C1–C6 | claude | completed |
+| QA-2 | Recheck Closures | **claude** | completed（PASS WITH RISKS，**降级被证伪**） |
+| 门禁 | Gate Data Model N10/N1/N2/N8 | claude | completed（94/94 绿） |
+| 门禁 | Gate Manuscript N3/N4 | codex | completed |
+| 门禁 | Gate Open Source 条件 8 | pi | completed |
+| QA-3 | **交叉验证** | opencode → **codex** | completed（PASS WITH RISKS） |
 
-### Agent 替换记录（如实记录，不掩盖）
+### Agent 失败与替换（如实记录）
 
-| 尝试 | Agent | 结果 | 原因 |
-|---|---|---|---|
-| 1 | codebuddy | 失败 | terminal 模式，CLI 裸启动，任务规格未注入，空转 |
-| 2 | codex | 失败 | structured 模式，读到第 2 份文档后停止，无产出 |
-| 3 | dsh | 失败 | 免费模型 `qiniu/conatus-free` 触发 429 限流 |
-| 4 | hermes | 成功 | 完成全部审计，产出 30 KB 报告 |
-
----
-
-## 4. Worker 交付与质量
-
-| 交付物 | 大小 | QA 判定 |
+| Agent | 失败方式 | 次数 |
 |---|---|---|
-| `research/obsidian/OBSIDIAN_TECHNICAL_AUDIT.md` | 59 KB | 证据链外部复核**逐字节吻合**，10/10 抽查可核验 |
-| `research/manuscript/MANUSCRIPT_TECHNICAL_AUDIT.md` | 24 KB | 3 条来源与结论不符、5 条不可核验、§9 统计错误 |
-| `research/data-model/SCIENTIFIC_DATA_MODEL_PROPOSAL.md` | 150 KB | **FAIL**，6 个阻断级内部矛盾 |
-| `research/open-source-audit/OPEN_SOURCE_AUDIT.md` | 41 KB | 2 条来源与结论不符（Manubot 许可证、Quarto 历史版本） |
+| codebuddy | terminal 模式，CLI 裸启动，规格未注入，空转 | 1 |
+| codex | 读到第二份文档后停止，无产出 | 1 |
+| dsh | 免费模型 `qiniu/conatus-free` 触发 429 | 1 |
+| pi | `429 free_campaign_global_limit` | 1 |
+| hermes | 中途被禁用（`agent_unconfigured`） | 1 |
+| qoder-cn | 中途被禁用 | 1 |
+| opencode | 卡死：输出 5 分钟零增长，未落盘任何文件 | 1 |
 
-### 已知过程缺陷
-
-- **Worker B 越界写入**：交付文件写到了四个 worktree 的公共父目录，而非自己的 worktree。已由 Lead 手工收回。隔离机制本身有效，是 Worker 未遵守路径约定。
+**教训**：Orca worker 的可靠性与其"是否有 structured session"强相关；terminal 模式的 agent（codebuddy、qoder-cn）无法可靠接收任务规格。
 
 ---
 
-## 5. QA 结果摘要
+## 4. 三轮 QA 的判定演变
 
-必审 9 项：**5 PASS / 3 RISK / 1 FAIL**。
-
-PASS：原始文件保护、DOCX 导入失败与信息丢失、WritingLab Core 依赖边界、Obsidian 能力未夸大、Revision Engine 闭环。
-RISK：来源可追溯、技术判断证据、许可证。
-FAIL：数据模型内部一致性。
-
-### 6 个阻断级缺陷（数据模型）
-
-| ID | 缺陷 | 状态 |
+| 轮次 | 判定 | 关键发现 |
 |---|---|---|
-| B1 | `Panel.figure` 与 `Panel.derived_from` 同时自称权威边，违反自身 P2 | 已独立复核确认 |
-| B2 | `RevisionIssue.targets[]` 在 §3.15 与 §4.6 是两种不兼容形态 | 已确认 |
-| B3 | 编号 token 体系三处矛盾；Table/Equation 无实体却存在 `{{tab:}}`/`{{eq:}}` | 已确认 |
-| B4 | Result↔Figure 边归属互指，无权威方 | 已确认 |
-| B5 | 已 ACCEPTED 的 D-04（禁嵌套 frontmatter）与 17 张字段表未对齐 | 已确认 |
-| B6 | `ANCHOR_RE` 只匹配 `^par-…`，主语法是 `^par_…`，哈希确定性失效 | **Lead 已独立复现** |
+| QA-1（hermes） | **FAIL** | 6 个阻断级缺陷全在数据模型；Manuscript 与 Open-source 存在来源与结论不符 |
+| QA-2（claude） | PASS WITH RISKS | B1–B6 判 CLOSED，把 4 处文法矛盾转成「新问题 N10」 |
+| QA-3（codex） | **PASS WITH RISKS** | 确认 B1–B6 与门禁项全部 CLOSED；**推翻 QA-2 降级的合法性** |
 
-B6 复现：`ANCHOR_RE = r"\s+\^[a-z]{3}-?[0-9A-HJKMNP-TV-Z]{8}\s*$"`，对 `^par_9QK2M4XZ` 不匹配（下划线不被 `-?` 覆盖）。`Patch.before_hash`、漂移检测、VR-29/VR-45 全部建立在该哈希上。
+### 交叉验证的核心发现（这是本轮最有价值的一条）
 
----
+QA-2 在初稿判 FAIL 后自行改为 PASS WITH RISKS，理由是「那四处文法问题超出 B3 原始范围」。QA-3 逐字比对 QA-1 对 B3 的**原文**后裁定：
 
-## 6. 架构建议（不被 FAIL 推翻的部分）
+> **降级不成立，当时应维持 FAIL。**
 
-统一架构见 `research/architecture/SYSTEM_ARCHITECTURE.md`，核心五层：
+理由：
+- (a) `#panel` 规范↔正则矛盾，**正是 B3② 的原始缺陷**——修复后矛盾没消失，只是从 §3.18 搬进了新建的 §6.0；
+- (c) `fig_a/fig_b` 非法示例，**正落在 B3 点名的 §6.7**；
+- QA-2 自己的 B3-a 分类栏写着「属 B3 修复内未闭合」，却又判 B3=CLOSED——**自相矛盾**。
 
-```
-Vault(文件即真) → Schema → Engine(外部进程) → Bridge(127.0.0.1) → Plugin(宿主)
-```
+QA-2 之所以能降级，靠的是把「三处一致」缩窄成「三个字面位置一致 + 向量全绿」，排除了新建单一定义**内部**的散文↔正则自洽性。
 
-三处关键裁决：
+**但结论仍然成立**：其后的门禁修复（`7b1890d`）实质关闭了这些缺陷。QA-3 用**双重突变测试**证明：
+- 拿修复前的文档配当前测试 → **94 checks / 9 failed**，失败项与 GATE_FIX_LOG 自述精确吻合；
+- 只把 §6.0.4 规则 1 改回「语法错误」→ **仅 B3-07 FAIL**。
 
-1. **禁止嵌套 frontmatter** — Obsidian 官方明列不支持，且属性面板会重写。结构化子对象进正文 fenced YAML 块。
-2. **Bases 只作浏览层** — `QueryController` 是空类，插件无法执行查询；反向关系由引擎生成 JSON。
-3. **转换必须外置** — 插件无 `fs`/`child_process`，移动端调用即崩溃；DOCX 全部在引擎侧。
-
-开源策略：**不 Fork 任何项目**，Reference-only 为主，Manubot 有限 Adapt。理由见 `decisions/ARCHITECTURE_DECISIONS.md` D-09。
+所以 PASS WITH RISKS 的功劳在门禁修复，不在那次降级。已据此立 **D-16**：阻断项关闭以原始审计原文为唯一判据，修复方不得自审，复审方不得是实施者。
 
 ---
 
-## 7. 证据链接
+## 5. 交付物清单
 
-- Obsidian：`research/obsidian/OBSIDIAN_TECHNICAL_AUDIT.md` + `evidence/obsidian-dts-excerpts.md`（含 `obsidian.d.ts` blob sha、SHA-256、逐条行号）
-- Manuscript：`research/manuscript/MANUSCRIPT_TECHNICAL_AUDIT.md`（证据清单需补 URL，见放行条件 7）
-- Data model：`research/data-model/SCIENTIFIC_DATA_MODEL_PROPOSAL.md` + `schemas/`
-- Open source：`research/open-source-audit/OPEN_SOURCE_AUDIT.md`（无 evidence 目录，需补）
-- QA：`reports/qa/PHASE_0_AUDIT_REPORT.md`
+| 路径 | 内容 |
+|---|---|
+| `research/obsidian/OBSIDIAN_TECHNICAL_AUDIT.md` | Obsidian 能力审计（证据链经外部逐字节复核） |
+| `research/obsidian/CROSS_CONFIRMATION.md` | C1–C6 定向确认 |
+| `research/manuscript/MANUSCRIPT_TECHNICAL_AUDIT.md` | DOCX/LaTeX/PDF 转换可行性 |
+| `research/data-model/SCIENTIFIC_DATA_MODEL_PROPOSAL.md` | 19 实体模型 + 文法单一定义 |
+| `research/data-model/tests/run_vectors.py` | 94 条可执行测试向量 |
+| `research/open-source-audit/OPEN_SOURCE_AUDIT.md` | 7 项目核查 + 许可证矩阵 |
+| `research/open-source-audit/PANDOC_BOUNDARY.md` | Pandoc GPL 调用边界 |
+| `research/architecture/SYSTEM_ARCHITECTURE.md` | 五层架构 |
+| `research/architecture/DEVELOPMENT_ROADMAP.md` | Phase 1–5 |
+| `decisions/ARCHITECTURE_DECISIONS.md` | 16 条 ADR |
+| `reports/qa/PHASE_0_AUDIT_REPORT.md` | QA-1（FAIL） |
+| `reports/qa/PHASE_0_RECHECK.md` | QA-2（降级被证伪） |
+| `reports/qa/PHASE_0_CROSS_VALIDATION.md` | QA-3（独立复核） |
 
 ---
 
-## 8. 风险清单
+## 6. 仍开放的非阻断项（7 项）
 
-| # | 风险 | 级别 | 来源 |
+| # | 严重度 | 条目 | 处理建议 |
 |---|---|---|---|
-| R-01 | 数据模型 6 处阻断缺陷若带入实现，会产生分歧实现与静默数据损坏 | 阻断 | QA B1–B6 |
-| R-02 | `python-docx` 修订能力被高估，D-03 选型基线可能错误 | 高 | QA B1(§3) |
-| R-03 | 渲染期编号依赖 CM6 未类型化 API | 高 | Worker A §4.3 |
-| R-04 | `_maps/` 是"文件即真"的唯一例外，备份策略未定义 | 高 | 数据模型 W1 |
-| R-05 | 跨审计确认闭环缺失，块锚点语法至今悬空 | 中 | QA §5-7 |
-| R-06 | 开源报告证据为二手来源，无证据快照 | 中 | QA §9-9 |
-| R-07 | 大 Vault 全量扫描卡顿 | 中 | Worker A §3.3 |
-| R-08 | Pandoc 为 GPL，引擎分发方式的合规边界未定 | 中 | QA §9-10 |
+| R1 | 中 | 表外引用字段：`Document.content_hash`、`shared_with`、`evidence_links`、`part_files` 无字段表行，VR-17 会报未知字段 | Phase 1 第 1 周轻量修订 |
+| R2 | 低 | 测试子串断言对否定式/标点变体不健壮 | 随手修 |
+| R3 | 低 | 正文 fenced block 字节保真（D-04 存亡前提）无运行时证据 | Phase 1 首个 milestone 真实 Vault 实测 |
+| R4 | 中（治理） | 分发形态无正式裁决，D-09 仍 PENDING | **需你决定** |
+| R5 | 低 | Quarto 改用 MIT 的具体 tag 未落实（commit 级已核实） | 随手修 |
+| R6 | 低 | 架构 §9 AGPL 行缺条件标记 | **本次已修** |
+| R7 | 低 | 测试 harness 对 BOM 敏感 | 非缺陷，取证时用字节精确提取 |
 
 ---
 
-## 9. 需要你批准的决策
+## 7. 需要你批准的决策
 
-### 9.1 Phase 0 修复（必须先做）
+### 7.1 必须先定（阻断 Phase 1 的法务前提）
 
-- **是否启动一轮修订**：把 6 个阻断项交给 Worker C 修复，Manuscript 与 Open-source 的证据问题交给 B / D 补证，再由 QA 复审。
+**D-09 分发形态**：闭源分发 / 开源分发（MIT 或 Apache-2.0）/ 仅自用不分发。
+三种情形下 AGPL（TeXlyre、Oleafly）与 GPL（Quarto、Pandoc）的义务完全不同。
 
-### 9.2 架构决策（原 7 条，仍待批）
+### 7.2 架构决策（原 7 条，仍待批）
 
 | ID | 决策 | 建议 |
 |---|---|---|
 | D-05 | 文件名策略 | 混合：机器实体用 ID，人类实体用可读名 |
-| D-09 | 开源复用 | 不 Fork，Reference-only |
 | D-10 | WritingLab Core | 可选 Adapter，Phase 4 后再评估 |
 | D-11 | 移动端定位 | 只读 |
 | D-12 | Vault 目录结构 | 按架构文档 §3 |
 | D-13 | 技术栈 | Python 引擎 + Pandoc + TypeScript 插件 |
-| D-03 | DOCX 导入器 | Phase 1 第 1 周实测对比（须含 python-docx 修订 API 实测） |
+| D-03 | DOCX 导入器 | Phase 1 第 1 周实测对比（已含 python-docx 判据表） |
+
+**D-13 补充事实**（本轮实测更正）：python-docx **1.2.0 起已有批注公开 API**（`add_comment` / `comments`），此前「无批注 API」的说法只对 <1.2.0 成立。Track Changes 仍需手工操作 oxml 层。
+
+### 7.3 Phase 1 是否启动
 
 ---
 
-## 10. 下一阶段任务
+## 8. 下一阶段（Phase 1 竖切验证）
 
-1. **修订轮（阻断）**：关闭 B1–B6，产出修订后字段表 + diff + 测试向量
-2. **补证轮**：Manuscript 证据清单补 URL/版本/产物；Open-source 更正 Manubot 许可证、重做兼容矩阵、复核 Quarto 历史版本
-3. **交叉确认**：Worker A 对块 ID 字符集、`{{...}}` 语法、批注支持、blocks 索引逐项答复
-4. **QA 复审**：仅针对关闭项复审，通过后升级为 PASS WITH RISKS
-5. 决策批准后进入 Phase 1
+按 `DEVELOPMENT_ROADMAP.md`：
+
+1. `swp-engine` CLI 骨架（ingest / export / validate）
+2. Schema v1：仅 Manuscript / Section / Paragraph / Figure / Panel / Asset 六实体
+3. DOCX ingest + export + 5 篇真实论文的保真度基准
+4. **退出条件**：正文文字 100% 一致、两次导入锚点一致、导出 DOCX 可被 Word 正确打开、丢失项报告覆盖全部已知损失
+
+**Phase 1 首个 milestone 必做**：真实 Vault 实测正文 fenced block 是否字节保真（关闭 R3）。若不成立，按既有退路把结构化子对象迁到 `_maps/`。
 
 ---
 
-## 11. 本阶段未做的事（按约束）
+## 9. 本阶段未做的事（按约束）
 
 - 未开始功能开发
 - 未安装项目依赖
