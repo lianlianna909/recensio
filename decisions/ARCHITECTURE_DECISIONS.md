@@ -26,12 +26,14 @@
 | D-14 | 实体分期实现（17 → 6） | ACCEPTED |
 | D-15 | 原始件不可变，sha256 内容寻址 | ACCEPTED |
 | D-16 | 阻断项关闭以原始审计原文为判据，须由独立方复核 | ACCEPTED |
-| ADR-LIC-001 | 项目许可证 = Apache License 2.0 | **ACCEPTED（待执行）** |
-| ADR-LIC-002 | 贡献者协议 = DCO 1.1，暂不采用 CLA | **ACCEPTED（待执行）** |
-| ADR-LIC-003 | 第三方依赖治理（THIRD-PARTY.md 强制登记） | **ACCEPTED（待执行）** |
+| ADR-LIC-001 | 项目许可证 = Apache License 2.0 | **ACCEPTED（已执行）** |
+| ADR-LIC-002 | 贡献者协议 = DCO 1.1，暂不采用 CLA | **ACCEPTED（已执行）** |
+| ADR-LIC-003 | 第三方依赖治理（THIRD-PARTY.md 强制登记） | **ACCEPTED（已执行）** |
+| ADR-NAME-001 | 项目对外名称 = Recensio | **ACCEPTED** |
 
-> **ADR-LIC-001 ~ 003 的完整内容见 [`ADR-LIC-001-003.md`](ADR-LIC-001-003.md)。**
-> 三条均已记录为架构基线，但**文件尚未创建**——执行被 §8 的三个占位符（版权持有人 / 版权年份 / 发布主体）阻塞。
+> **ADR-LIC-001 ~ 003 与 ADR-NAME-001 的完整内容见 [`ADR-LIC-001-003.md`](ADR-LIC-001-003.md)。**
+> 执行状态：`LICENSE`、`NOTICE`、`DCO.md`、`CONTRIBUTING.md`、`THIRD-PARTY.md`、`docs/LICENSE-POLICY.md` 已创建；两个自有 `.py` 已加 SPDX 头。
+> 仍待办：首个带 `Signed-off-by` 的提交（需负责人本人的 Git 身份）、`reuse lint` 实测（工具未安装）、商标与域名核查。
 
 ---
 

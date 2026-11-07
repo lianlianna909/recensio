@@ -1,3 +1,5 @@
+# Copyright 2026 马蕾娜 (Leina Ma)
+# SPDX-License-Identifier: Apache-2.0
 """G2-2 探针：python-docx 无公开修订 API，但可经 `.element`（lxml）读写 `w:ins`/`w:del`。
 
 运行: python research/manuscript/evidence/probe_pythondocx_trackchanges.py

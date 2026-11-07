@@ -1,0 +1,15 @@
+Recensio
+Copyright 2026 马蕾娜 (Leina Ma)
+
+This product is licensed under the Apache License, Version 2.0.
+The full license text is in the LICENSE file.
+
+Third-party components
+----------------------
+
+No third-party source code is bundled or distributed with this product at
+this revision.
+
+External tools invoked as separate processes at runtime (for example, Pandoc)
+are installed by the user and are not part of this distribution. They are
+listed in THIRD-PARTY.md for transparency; their own licenses apply.

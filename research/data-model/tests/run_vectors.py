@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright 2026 马蕾娜 (Leina Ma)
+# SPDX-License-Identifier: Apache-2.0
 """Executable test vectors for SCIENTIFIC_DATA_MODEL_PROPOSAL.md (revision draft-2).
 
 Covers:
