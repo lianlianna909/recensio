@@ -184,11 +184,11 @@ Markdown 无法承载 Track Changes（Worker B 明确结论）。采用三层：
 
 | 项目 | 结论 | 理由 |
 |---|---|---|
-| Quarto | **Reference-only** | CLI 工具而非库；Fork 后无法作为产品基础维护 |
+| Quarto | **Reference-only** | CLI 工具而非库；Fork 后无法作为产品基础维护。现行版本 MIT，早期版本 GPL-2.0 |
 | Curvenote Editor | **Reference-only**（原判 Adapt 下调） | ProseMirror 栈与 Obsidian 的 CM6 不兼容，只能借鉴 schema 设计 |
 | Manubot | **Adapt（有限）** | 仅借鉴 citation 处理流程与 `manubot cite` 的 CLI 契约 |
 | Typst | Reference-only | 排版引擎，与本项目无直接复用点 |
-| TeXlyre / Oleafly | **Reference-only（法务阻断）** | AGPL-3.0；**条件性结论**——若本项目最终闭源分发或作为 SaaS 提供，AGPL 代码不可复用；若改为 AGPL 兼容的开源分发，此项需重新评估。分发形态见 D-09（PENDING） |
+| TeXlyre / Oleafly | **Reference-only（许可不兼容）** | AGPL-3.0。本项目定为宽松许可开源（MIT/Apache-2.0，D-09 ACCEPTED），AGPL 的传染义务与目标许可不兼容，代码不可合入，只能作 Reference |
 | TeXMind | 不可用 | 未能核实为科研写作项目 |
 
 **没有任何 Fork。** 这是对 Worker D 建议的修正：Worker D 建议 Fork Quarto，但 Quarto 是打包好的 CLI 发行版，Fork 它等于接管一个百万行级工具的维护，与"在 Obsidian 上做科研写作"的目标不匹配。

@@ -16,7 +16,15 @@
 >
 > **若本项目改为 MIT / Apache-2.0 等宽松许可证开源，则凡涉及 AGPL 与 GPL 的结论需整体重估**，具体差异见下表。
 >
-> 该前提目前在 `decisions/` 中**尚无裁决**（D-09 状态为 PENDING）。本报告不替项目做最终选型；分发形态确定后，需按下表核对并更新相关结论。
+> **裁决更新（2026-11-07）**：用户已确定本项目采用**宽松许可证开源（MIT / Apache-2.0）**，即上表**情形 B**。D-09 状态由 PENDING 改为 ACCEPTED。
+>
+> 按情形 B 列，**§1–§6 的结论无需改动**：
+> - TeXlyre / Oleafly（AGPL-3.0）仍为 **Reference-only**——AGPL 的传染义务与 MIT/Apache-2.0 目标许可不兼容，不能合入本代码库；
+> - Quarto 早期版本（GPL-2.0）不可合入，现行版本（MIT）可用；
+> - Pandoc（GPL-2.0-or-later）仅以独立进程调用，随产品分发二进制须履行 GPL 义务（见 `PANDOC_BOUNDARY.md`）；
+> - Curvenote（MIT）/ Manubot（BSD-2-Clause-Patent）/ Typst（Apache-2.0）均可用。
+>
+> 仍需在落地前定的一项：**MIT 还是 Apache-2.0**。二者在复用结论上等价（都排除了 AGPL/GPL 代码合入），差异在专利授权条款（Apache-2.0 含显式专利许可与专利 retaliation 条款，MIT 无）。
 
 ### 两种分发情形下的结论差异表
 

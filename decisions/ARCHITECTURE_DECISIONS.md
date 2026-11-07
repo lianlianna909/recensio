@@ -18,7 +18,7 @@
 | D-06 | 编号在渲染时解析，导出时固化 | ACCEPTED |
 | D-07 | Bases 只作浏览层，不作查询引擎 | ACCEPTED |
 | D-08 | 修订三层：sidecar + 快照 + Git | ACCEPTED |
-| D-09 | 不 Fork 任何开源项目，仅 Reference / 有限 Adapt | **PENDING** |
+| D-09 | 分发形态 = 宽松许可开源；不 Fork 任何项目 | **ACCEPTED** |
 | D-10 | WritingLab Core 为可选 Adapter | **PENDING** |
 | D-11 | 移动端只读 | **PENDING** |
 | D-12 | Vault 目录结构 | **PENDING** |
@@ -122,7 +122,24 @@
 
 ---
 
-## D-09 不 Fork 开源项目 — PENDING
+## D-09 分发形态与开源复用 — ACCEPTED（2026-11-07）
+
+**Decision（用户裁定）**：本项目以**宽松许可证开源**（MIT 或 Apache-2.0，二选一待定）。据此：
+
+1. **不 Fork 任何开源项目**，Reference-only 为主，Manubot 作有限 Adapt（BSD-2-Clause-Patent 与宽松许可兼容）。
+2. **TeXlyre / Oleafly（AGPL-3.0）仍不可用**：AGPL 的传染义务与 MIT/Apache-2.0 目标许可不兼容，只能作 Reference。
+3. **Quarto 现行版本（MIT）可用**；早期 GPL-2.0 版本不可合入。
+4. **Pandoc（GPL-2.0-or-later）仅以独立进程调用**；随产品分发二进制须履行 GPL 义务（见 `research/open-source-audit/PANDOC_BOUNDARY.md`）。
+
+**Consequences**：
+- 开源复用结论与裁决前**完全一致**——宽松许可并没有解锁 AGPL/GPL 代码，只是把「法务阻断」从「闭源冲突」换成「许可不兼容」。
+- SaaS 场景不再触发 AGPL 的源码提供义务（因为项目本身不含 AGPL 代码）。
+- **仍待定**：MIT vs Apache-2.0。二者在复用结论上等价，差异在专利条款（Apache-2.0 含显式专利许可与 retaliation 条款）。代码落地前必须定。
+- 开源后需配套：贡献者许可（DCO 或 CLA）、第三方依赖清单（NOTICE / THIRD-PARTY）、以及 Phase 1 起每个依赖的许可证登记。
+
+---
+
+## D-09 原始记录 — 不 Fork 开源项目
 
 **Context**：Worker D 建议 Fork Quarto（MIT），Adapt Curvenote Editor（MIT）与 Manubot。
 

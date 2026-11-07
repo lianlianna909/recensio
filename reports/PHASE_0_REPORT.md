@@ -13,7 +13,9 @@
 
 架构方向（Obsidian 宿主 + 外部引擎 + 文件即真）在整个审计过程中从未被证伪。被反复修正的是**文档内部一致性**与**证据质量**，二者现已闭合。
 
-唯一必须在你动手前定下的是 **D-09 分发形态**：闭源 / 开源（MIT-Apache）/ 仅自用。AGPL（TeXlyre、Oleafly）与 GPL（Quarto、Pandoc）的全部结论都挂在这个前提上，前提不定，法务结论就是空的。
+**D-09 分发形态已裁定（2026-11-07）：宽松许可开源（MIT / Apache-2.0）。** 据此 TeXlyre / Oleafly（AGPL）仍为 Reference-only，Quarto 现行版（MIT）可用，Pandoc 仅作进程级调用。开源没有解锁 AGPL/GPL 代码——复用结论与裁定前完全一致，只是把「闭源冲突」换成了「许可不兼容」。
+
+**仍待定一项**：MIT 还是 Apache-2.0。二者在复用结论上等价，差异在专利条款（Apache-2.0 含显式专利许可与 retaliation 条款）。代码落地前必须定。
 
 ---
 
@@ -122,7 +124,7 @@ QA-2 之所以能降级，靠的是把「三处一致」缩窄成「三个字面
 | R1 | 中 | 表外引用字段：`Document.content_hash`、`shared_with`、`evidence_links`、`part_files` 无字段表行，VR-17 会报未知字段 | Phase 1 第 1 周轻量修订 |
 | R2 | 低 | 测试子串断言对否定式/标点变体不健壮 | 随手修 |
 | R3 | 低 | 正文 fenced block 字节保真（D-04 存亡前提）无运行时证据 | Phase 1 首个 milestone 真实 Vault 实测 |
-| R4 | 中（治理） | 分发形态无正式裁决，D-09 仍 PENDING | **需你决定** |
+| R4 | — | 分发形态无正式裁决 | **已关闭**：D-09 裁定为宽松许可开源 |
 | R5 | 低 | Quarto 改用 MIT 的具体 tag 未落实（commit 级已核实） | 随手修 |
 | R6 | 低 | 架构 §9 AGPL 行缺条件标记 | **本次已修** |
 | R7 | 低 | 测试 harness 对 BOM 敏感 | 非缺陷，取证时用字节精确提取 |
@@ -131,10 +133,16 @@ QA-2 之所以能降级，靠的是把「三处一致」缩窄成「三个字面
 
 ## 7. 需要你批准的决策
 
-### 7.1 必须先定（阻断 Phase 1 的法务前提）
+### 7.1 已裁定
 
-**D-09 分发形态**：闭源分发 / 开源分发（MIT 或 Apache-2.0）/ 仅自用不分发。
-三种情形下 AGPL（TeXlyre、Oleafly）与 GPL（Quarto、Pandoc）的义务完全不同。
+**D-09 分发形态 = 宽松许可开源**（2026-11-07）。派生决定：
+
+- TeXlyre / Oleafly（AGPL-3.0）→ Reference-only，代码不可合入
+- Quarto 现行版（MIT）→ 可用；早期 GPL-2.0 → 不可合入
+- Pandoc（GPL-2.0-or-later）→ 仅进程级调用；随产品分发二进制须履行 GPL 义务
+- Manubot（BSD-2-Clause-Patent）→ 可作有限 Adapt
+- **仍待定：MIT 还是 Apache-2.0**（复用结论等价，差异在专利条款）
+- 配套项：贡献者许可（DCO/CLA）、`THIRD-PARTY` 依赖清单、Phase 1 起每个依赖的许可证登记
 
 ### 7.2 架构决策（原 7 条，仍待批）
 
