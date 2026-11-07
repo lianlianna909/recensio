@@ -1,0 +1,9 @@
+version = 1
+SPDX-PackageName = "Recensio"
+SPDX-PackageSupplier = "Leina Ma <leinama@gmail.com>"
+
+[[annotations]]
+path = "**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 马蕾娜 (Leina Ma)"
+SPDX-License-Identifier = "Apache-2.0"

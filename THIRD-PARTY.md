@@ -7,10 +7,10 @@
 
 ## 1. 当前状态
 
-**已登记的第三方依赖：0 个。**
+**已登记的第三方依赖：1 个**（均为开发期工具，不随发行包分发）。
 
-本仓库当前只含文档、两个测试/探针脚本与一份 schema 示例，无任何包管理器清单
-（无 `package.json` / `pyproject.toml` / `requirements.txt` / `Cargo.toml` / `go.mod`）。
+本仓库的产品代码尚未开始（Phase 1 未启动），当前无运行时依赖；
+无任何包管理器清单（无 `package.json` / `pyproject.toml` / `requirements.txt` / `Cargo.toml` / `go.mod`）。
 
 ---
 
@@ -20,7 +20,26 @@
 
 | 名称 | 精确版本 | 来源仓库 | 许可证 SPDX | 用途 | 分类 | 随发行包分发 | 含 NOTICE | 审查结论 |
 |---|---|---|---|---|---|---|---|---|
-| _（空）_ | | | | | | | | |
+| `reuse` | `6.3.0` | https://codeberg.org/fsfe/reuse-tool | `Apache-2.0 AND CC0-1.0 AND CC-BY-SA-4.0 AND GPL-3.0-or-later` | SPDX header 与许可证合规检查（`reuse lint`） | Development | 否 | 否 | **需人工批准 → 已批准**（含 GPL-3.0-or-later，见 §5 例外 `EX-001`） |
+
+### 2.1 `reuse` 的传递依赖（均为 Development，均不随发行包分发）
+
+安装于仓库内 `.venv`（已在 `.gitignore` 中）。全部仅在开发期与 CI 以独立进程调用，不链接进产品。
+
+| 名称 | 精确版本 | 许可证 SPDX | 用途 |
+|---|---|---|---|
+| `attrs` | `26.1.0` | MIT | reuse 的传递依赖 |
+| `boolean.py` | `5.0` | BSD-2-Clause | reuse 的传递依赖 |
+| `charset-normalizer` | `3.5.2` | MIT | reuse 的编码检测（Windows 无 `file` 命令时的必需 extra） |
+| `click` | `8.5.1` | BSD-3-Clause | reuse 的 CLI 框架 |
+| `Jinja2` | `3.1.6` | BSD-3-Clause | reuse 的模板渲染 |
+| `license-expression` | `30.4.4` | Apache-2.0 | reuse 的许可证表达式解析 |
+| `MarkupSafe` | `3.0.4` | BSD-3-Clause | Jinja2 的传递依赖 |
+| `python-debian` | `1.1.1` | **GPL-2.0-or-later** | reuse 解析 Debian `dep5` 格式（**见 EX-002**） |
+| `python-magic` | `0.4.27` | MIT | reuse 的文件类型探测 |
+| `tomlkit` | `0.15.2` | MIT | reuse 读写 TOML 配置 |
+
+> `pip` / `setuptools` / `wheel` 属虚拟环境自带工具，不计入项目依赖。
 
 **字段约束**
 
@@ -66,7 +85,7 @@
 
 ## 5. 例外流程
 
-任何「需人工批准」或「禁止」项的例外，必须写入 `licenses/exceptions.yaml`：
+任何「需人工批准」或「禁止」项的例外，必须写入 `compliance/exceptions.yaml`：
 
 ```yaml
 - package: example-lib

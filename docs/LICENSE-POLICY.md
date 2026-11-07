@@ -114,7 +114,7 @@ SPDX-License-Identifier: Apache-2.0
 
 ## 5. 例外
 
-- 依赖类例外 → `licenses/exceptions.yaml`（见 `THIRD-PARTY.md` §5）
+- 依赖类例外 → `compliance/exceptions.yaml`（见 `THIRD-PARTY.md` §5）
 - Header 类例外 → 在 `.reuse/dep5` 中按路径声明，并注明理由
 - 两类例外都必须有**批准人**与**复审日期**
 
